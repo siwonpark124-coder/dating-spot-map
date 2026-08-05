@@ -34,29 +34,29 @@ export default async function FeedbackAdminPage() {
     );
   }
 
-  const { data: placeFeedback } = await supabaseAdmin
-    .from("place_feedback")
-    .select("id, category, message, status, created_at, places(name)")
-    .order("status", { ascending: true })
-    .order("created_at", { ascending: false });
-
-  const { data: siteFeedback } = await supabaseAdmin
-    .from("site_feedback")
-    .select("id, message, status, created_at")
-    .order("status", { ascending: true })
-    .order("created_at", { ascending: false });
-
-  const { data: courseSuggestions } = await supabaseAdmin
-    .from("course_suggestions")
-    .select("id, nickname, content, status, created_at")
-    .order("status", { ascending: true })
-    .order("created_at", { ascending: false });
-
-  const { data: businessInquiries } = await supabaseAdmin
-    .from("business_inquiries")
-    .select("id, business_name, contact, message, status, created_at")
-    .order("status", { ascending: true })
-    .order("created_at", { ascending: false });
+  const [{ data: placeFeedback }, { data: siteFeedback }, { data: courseSuggestions }, { data: businessInquiries }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("place_feedback")
+        .select("id, category, message, status, created_at, places(name)")
+        .order("status", { ascending: true })
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("site_feedback")
+        .select("id, message, status, created_at")
+        .order("status", { ascending: true })
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("course_suggestions")
+        .select("id, nickname, content, status, created_at")
+        .order("status", { ascending: true })
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("business_inquiries")
+        .select("id, business_name, contact, message, status, created_at")
+        .order("status", { ascending: true })
+        .order("created_at", { ascending: false }),
+    ]);
 
   return (
     <main className="min-h-screen bg-[#f6f1e7] p-6">

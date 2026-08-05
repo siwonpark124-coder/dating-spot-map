@@ -31,49 +31,35 @@ export default async function ReviewPage() {
     );
   }
 
-  const { count: pendingCount } = await supabaseAdmin
-    .from("places")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "pending_review");
-
-  const { count: rejectedCount } = await supabaseAdmin
-    .from("places")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "rejected");
-
-  const { count: draftedCount } = await supabaseAdmin
-    .from("places")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "pending_review")
-    .not("mood_tags", "eq", "{}");
-
-  const { data: nextPlace } = await supabaseAdmin
-    .from("places")
-    .select("*")
-    .eq("status", "pending_review")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  const { count: placeFeedbackCount } = await supabaseAdmin
-    .from("place_feedback")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "new");
-
-  const { count: siteFeedbackCount } = await supabaseAdmin
-    .from("site_feedback")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "new");
-
-  const { count: courseSuggestionCount } = await supabaseAdmin
-    .from("course_suggestions")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "new");
-
-  const { count: businessInquiryCount } = await supabaseAdmin
-    .from("business_inquiries")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "new");
+  const [
+    { count: pendingCount },
+    { count: rejectedCount },
+    { count: draftedCount },
+    { data: nextPlace },
+    { count: placeFeedbackCount },
+    { count: siteFeedbackCount },
+    { count: courseSuggestionCount },
+    { count: businessInquiryCount },
+  ] = await Promise.all([
+    supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
+    supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "rejected"),
+    supabaseAdmin
+      .from("places")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending_review")
+      .not("mood_tags", "eq", "{}"),
+    supabaseAdmin
+      .from("places")
+      .select("*")
+      .eq("status", "pending_review")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabaseAdmin.from("place_feedback").select("id", { count: "exact", head: true }).eq("status", "new"),
+    supabaseAdmin.from("site_feedback").select("id", { count: "exact", head: true }).eq("status", "new"),
+    supabaseAdmin.from("course_suggestions").select("id", { count: "exact", head: true }).eq("status", "new"),
+    supabaseAdmin.from("business_inquiries").select("id", { count: "exact", head: true }).eq("status", "new"),
+  ]);
 
   const newFeedbackCount =
     (placeFeedbackCount ?? 0) +
