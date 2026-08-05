@@ -33,7 +33,7 @@ export default function PlaceCard({ place }: { place: PlaceWithReviewCount }) {
             </div>
           )}
 
-          {place.curation_note && <p className="text-sm text-stone-700">{place.curation_note}</p>}
+          {place.curation_note && <p className="line-clamp-2 text-sm text-stone-700">{place.curation_note}</p>}
           {place.business_hours && <p className="text-xs text-stone-500">{place.business_hours}</p>}
         </Link>
 

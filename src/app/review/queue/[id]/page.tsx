@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAuthenticated, publishPlace, rejectPlace } from "@/app/review/actions";
 import PlaceEditor from "@/components/PlaceEditor";
@@ -25,14 +24,27 @@ export default async function QueuePlacePage({ params }: { params: Promise<{ id:
 
   const { id } = await params;
 
-  const { data: place } = await supabaseAdmin
-    .from("places")
-    .select("*")
-    .eq("id", id)
-    .eq("status", "pending_review")
-    .maybeSingle();
+  const { data: place } = await supabaseAdmin.from("places").select("*").eq("id", id).maybeSingle();
 
-  if (!place) notFound();
+  if (!place) {
+    return (
+      <main className="flex h-screen items-center justify-center bg-[#f6f1e7]">
+        <p className="text-stone-600">존재하지 않는 장소예요.</p>
+      </main>
+    );
+  }
+
+  if (place.status !== "pending_review") {
+    const STATUS_LABELS: Record<string, string> = { published: "발행", rejected: "제외" };
+    return (
+      <main className="flex h-screen flex-col items-center justify-center gap-2 bg-[#f6f1e7]">
+        <p className="text-stone-800">✅ {place.name} — {STATUS_LABELS[place.status] ?? place.status} 처리 완료</p>
+        <Link href="/review/drafted" className="text-sm text-amber-700 underline">
+          ← 초안 준비된 장소 목록으로
+        </Link>
+      </main>
+    );
+  }
 
   const imageCheck = await checkImageUrl(place.cover_image_url);
 
