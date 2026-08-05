@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { Place } from "@/types/place";
 import PlaceEditor from "@/components/PlaceEditor";
+import { checkImageUrl } from "@/lib/checkImageUrl";
 import { authenticate, isAuthenticated, publishPlace, rejectPlace } from "./actions";
 
 export default async function ReviewPage() {
@@ -34,6 +35,11 @@ export default async function ReviewPage() {
     .from("places")
     .select("id", { count: "exact", head: true })
     .eq("status", "pending_review");
+
+  const { count: rejectedCount } = await supabaseAdmin
+    .from("places")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "rejected");
 
   const { data: nextPlace } = await supabaseAdmin
     .from("places")
@@ -69,6 +75,8 @@ export default async function ReviewPage() {
     (courseSuggestionCount ?? 0) +
     (businessInquiryCount ?? 0);
 
+  const imageCheck = nextPlace ? await checkImageUrl(nextPlace.cover_image_url) : undefined;
+
   return (
     <main className="flex h-screen flex-col bg-[#f6f1e7]">
       <div className="flex shrink-0 items-center justify-between px-6 py-3">
@@ -79,6 +87,9 @@ export default async function ReviewPage() {
           </Link>
           <Link href="/review/published" className="text-amber-700 underline">
             발행된 장소 수정
+          </Link>
+          <Link href="/review/rejected" className="text-amber-700 underline">
+            제외한 장소{rejectedCount ? ` (${rejectedCount})` : ""}
           </Link>
           <Link href="/review/feedback" className="text-amber-700 underline">
             피드백 확인{newFeedbackCount > 0 ? ` (${newFeedbackCount})` : ""}
@@ -92,6 +103,7 @@ export default async function ReviewPage() {
           primaryLabel="발행"
           secondaryAction={rejectPlace}
           secondaryLabel="제외"
+          imageCheck={imageCheck}
         />
       ) : (
         <p className="px-6 text-stone-600">검수할 장소가 없어요 🎉</p>

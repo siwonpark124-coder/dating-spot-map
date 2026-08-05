@@ -62,11 +62,35 @@ export async function rejectPlace(formData: FormData) {
   if (!(await isAuthenticated())) return;
 
   const id = String(formData.get("id"));
-  const { error } = await supabaseAdmin.from("places").update({ status: "rejected" }).eq("id", id);
+  const reason = String(formData.get("rejection_reason") ?? "").trim();
+
+  if (!reason) return; // 제외 사유 없이는 제외 처리하지 않음
+
+  const { error } = await supabaseAdmin
+    .from("places")
+    .update({ status: "rejected", rejection_reason: reason })
+    .eq("id", id);
 
   if (error) console.error("rejectPlace failed:", error.message);
 
   revalidatePath("/review");
+  revalidatePath("/review/rejected");
+}
+
+// 제외했던 장소를 다시 검수 대기열로 되돌림
+export async function restorePlace(formData: FormData) {
+  if (!(await isAuthenticated())) return;
+
+  const id = String(formData.get("id"));
+  const { error } = await supabaseAdmin
+    .from("places")
+    .update({ status: "pending_review", rejection_reason: null })
+    .eq("id", id);
+
+  if (error) console.error("restorePlace failed:", error.message);
+
+  revalidatePath("/review");
+  revalidatePath("/review/rejected");
 }
 
 // 이미 발행된 장소를 수정할 때 사용 (분위기/가격대/추천 이유). status는 published로 유지.
@@ -103,11 +127,19 @@ export async function unpublishPlace(formData: FormData) {
   if (!(await isAuthenticated())) return;
 
   const id = String(formData.get("id"));
-  const { error } = await supabaseAdmin.from("places").update({ status: "rejected" }).eq("id", id);
+  const reason = String(formData.get("rejection_reason") ?? "").trim();
+
+  if (!reason) return; // 제외 사유 없이는 내리지 않음
+
+  const { error } = await supabaseAdmin
+    .from("places")
+    .update({ status: "rejected", rejection_reason: reason })
+    .eq("id", id);
 
   if (error) console.error("unpublishPlace failed:", error.message);
 
   revalidatePath("/review/published");
+  revalidatePath("/review/rejected");
   revalidatePath("/");
   revalidatePath(`/place/${id}`);
 }

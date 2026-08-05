@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAuthenticated, updatePublishedPlace, unpublishPlace } from "@/app/review/actions";
 import PlaceEditor from "@/components/PlaceEditor";
+import { checkImageUrl } from "@/lib/checkImageUrl";
 import { Place } from "@/types/place";
 
 export default async function EditPlacePage({ params }: { params: Promise<{ id: string }> }) {
@@ -27,6 +28,8 @@ export default async function EditPlacePage({ params }: { params: Promise<{ id: 
 
   if (!place) notFound();
 
+  const imageCheck = await checkImageUrl(place.cover_image_url);
+
   return (
     <main className="flex h-screen flex-col bg-[#f6f1e7]">
       <div className="flex shrink-0 items-center px-6 py-3">
@@ -40,6 +43,7 @@ export default async function EditPlacePage({ params }: { params: Promise<{ id: 
         primaryLabel="저장"
         secondaryAction={unpublishPlace}
         secondaryLabel="내리기"
+        imageCheck={imageCheck}
       />
     </main>
   );

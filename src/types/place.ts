@@ -22,6 +22,7 @@ export interface Place {
   naver_place_url: string | null;
   reservation_url: string | null;
   status: PlaceStatus;
+  rejection_reason: string | null;
   kakao_place_id: string | null;
   created_at: string;
   updated_at: string;
