@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Place, MoodTag } from "@/types/place";
 import { MOOD_TAGS, CATEGORY_LABELS, PRICE_TIER_LABELS } from "@/lib/constants";
 import { ImageCheckResult } from "@/lib/checkImageUrl";
@@ -32,12 +33,51 @@ export default function PlaceEditor({
   const [priceTier, setPriceTier] = useState<1 | 2 | 3 | null>(place.price_tier);
   const [note, setNote] = useState(place.curation_note ?? "");
   const [rejectionReason, setRejectionReason] = useState("");
+  const [feedback, setFeedback] = useState<{ kind: "primary" | "secondary"; status: "ok" | "error" } | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const canSubmit = moodTags.length > 0 && priceTier !== null;
   const canReject = rejectionReason.trim().length > 0;
 
   function toggleTag(tag: MoodTag) {
     setMoodTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  }
+
+  function submitPrimary() {
+    const formData = new FormData();
+    formData.set("id", place.id);
+    moodTags.forEach((tag) => formData.append("mood_tags", tag));
+    formData.set("price_tier", String(priceTier ?? ""));
+    formData.set("curation_note", note);
+
+    setFeedback(null);
+    startTransition(async () => {
+      try {
+        await primaryAction(formData);
+        setFeedback({ kind: "primary", status: "ok" });
+        router.refresh();
+      } catch {
+        setFeedback({ kind: "primary", status: "error" });
+      }
+    });
+  }
+
+  function submitSecondary() {
+    const formData = new FormData();
+    formData.set("id", place.id);
+    formData.set("rejection_reason", rejectionReason.trim());
+
+    setFeedback(null);
+    startTransition(async () => {
+      try {
+        await secondaryAction(formData);
+        setFeedback({ kind: "secondary", status: "ok" });
+        router.refresh();
+      } catch {
+        setFeedback({ kind: "secondary", status: "error" });
+      }
+    });
   }
 
   return (
@@ -145,34 +185,32 @@ export default function PlaceEditor({
         </div>
 
         <div className="flex gap-2">
-          <form action={primaryAction} className="flex-1">
-            <input type="hidden" name="id" value={place.id} />
-            {moodTags.map((tag) => (
-              <input key={tag} type="hidden" name="mood_tags" value={tag} />
-            ))}
-            <input type="hidden" name="price_tier" value={priceTier ?? ""} />
-            <input type="hidden" name="curation_note" value={note} />
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="w-full rounded-lg bg-stone-800 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {primaryLabel}
-            </button>
-          </form>
-          <form action={secondaryAction}>
-            <input type="hidden" name="id" value={place.id} />
-            <input type="hidden" name="rejection_reason" value={rejectionReason} />
-            <button
-              type="submit"
-              disabled={!canReject}
-              title={canReject ? undefined : "제외 사유를 입력해야 할 수 있어요"}
-              className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {secondaryLabel}
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={submitPrimary}
+            disabled={!canSubmit || isPending}
+            className="flex-1 rounded-lg bg-stone-800 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isPending ? "처리 중..." : primaryLabel}
+          </button>
+          <button
+            type="button"
+            onClick={submitSecondary}
+            disabled={!canReject || isPending}
+            title={canReject ? undefined : "제외 사유를 입력해야 할 수 있어요"}
+            className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isPending ? "처리 중..." : secondaryLabel}
+          </button>
         </div>
+
+        {feedback && (
+          <p className={`text-sm ${feedback.status === "ok" ? "text-emerald-700" : "text-red-600"}`}>
+            {feedback.status === "ok"
+              ? `✅ ${feedback.kind === "primary" ? primaryLabel : secondaryLabel} 완료`
+              : "⚠️ 처리에 실패했어요. 페이지를 새로고침한 뒤 다시 시도해주세요."}
+          </p>
+        )}
       </div>
 
       <div className="min-h-[50vh] flex-1 md:min-h-0">
