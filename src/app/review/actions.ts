@@ -38,8 +38,8 @@ export async function publishPlace(formData: FormData) {
   const curationNote = String(formData.get("curation_note") ?? "").trim();
   const moodTags = formData.getAll("mood_tags").map(String) as MoodTag[];
 
-  if (!priceTierRaw || moodTags.length === 0 || !curationNote) {
-    return; // 필수 항목 누락 시 발행하지 않음
+  if (!priceTierRaw || moodTags.length === 0) {
+    return; // 필수 항목(분위기, 가격대) 누락 시 발행하지 않음 — 추천 이유는 선택
   }
 
   const { error } = await supabaseAdmin
@@ -48,7 +48,7 @@ export async function publishPlace(formData: FormData) {
       status: "published",
       mood_tags: moodTags,
       price_tier: Number(priceTierRaw),
-      curation_note: curationNote,
+      curation_note: curationNote || null,
     })
     .eq("id", id);
 

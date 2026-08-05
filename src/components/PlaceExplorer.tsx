@@ -35,7 +35,10 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
   return (
     <div className="flex h-screen flex-col">
       <header className="flex flex-wrap items-center gap-4 border-b border-stone-200 bg-[#fbf7ef] px-6 py-5">
-        <h1 className="shrink-0 text-xl font-bold text-stone-900">소개팅 장소 지도</h1>
+        <div className="flex shrink-0 flex-col">
+          <h1 className="text-xl font-bold text-stone-900">오로지</h1>
+          <p className="text-xs text-stone-500">오늘 로맨틱한 지점 · 오로지 당신의 성공적인 만남을 위해</p>
+        </div>
         <Filters
           neighborhood={neighborhood}
           onNeighborhoodChange={setNeighborhood}

@@ -16,7 +16,7 @@ export default function ReviewCard({ place }: { place: Place }) {
   const [priceTier, setPriceTier] = useState<1 | 2 | 3 | null>(place.price_tier);
   const [note, setNote] = useState(place.curation_note ?? "");
 
-  const canPublish = moodTags.length > 0 && priceTier !== null && note.trim().length > 0;
+  const canPublish = moodTags.length > 0 && priceTier !== null;
 
   function toggleTag(tag: MoodTag) {
     setMoodTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
@@ -83,12 +83,12 @@ export default function ReviewCard({ place }: { place: Place }) {
         </div>
 
         <div>
-          <p className="mb-1 text-xs font-semibold text-stone-500">추천 이유</p>
+          <p className="mb-1 text-xs font-semibold text-stone-500">추천 이유 (선택)</p>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
-            placeholder="이 장소가 소개팅에 왜 좋은지 적어주세요"
+            placeholder="특별히 덧붙일 말이 있으면 적어주세요 (없어도 발행 가능, 후기가 쌓이면 그게 대신해줘요)"
             className="w-full rounded border border-stone-300 p-2 text-sm text-stone-800 focus:border-stone-500 focus:outline-none"
           />
         </div>

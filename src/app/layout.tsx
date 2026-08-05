@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "소개팅 장소 지도",
-  description: "소개팅하기 좋은 식당·카페·바 큐레이션",
+  title: "오로지",
+  description: "오늘 로맨틱한 지점 — 오로지 당신의 성공적인 만남을 위해 준비된 소개팅 장소 지도",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
