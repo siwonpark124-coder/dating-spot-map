@@ -1,0 +1,73 @@
+import Link from "next/link";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { Place } from "@/types/place";
+import ReviewCard from "@/components/ReviewCard";
+import { authenticate, isAuthenticated } from "./actions";
+
+export default async function ReviewPage() {
+  const authed = await isAuthenticated();
+
+  if (!authed) {
+    return (
+      <main className="flex h-screen items-center justify-center bg-[#f6f1e7]">
+        <form
+          action={authenticate}
+          className="flex w-80 flex-col gap-3 rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+        >
+          <h1 className="text-lg font-bold text-stone-900">검수 페이지</h1>
+          <input
+            type="password"
+            name="password"
+            placeholder="비밀번호"
+            autoFocus
+            className="rounded border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+          />
+          <button type="submit" className="rounded-lg bg-stone-800 px-3 py-2 text-sm font-medium text-white hover:bg-stone-700">
+            입장
+          </button>
+        </form>
+      </main>
+    );
+  }
+
+  const { count: pendingCount } = await supabaseAdmin
+    .from("places")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending_review");
+
+  const { data: nextPlace } = await supabaseAdmin
+    .from("places")
+    .select("*")
+    .eq("status", "pending_review")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { count: placeFeedbackCount } = await supabaseAdmin
+    .from("place_feedback")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "new");
+
+  const { count: siteFeedbackCount } = await supabaseAdmin
+    .from("site_feedback")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "new");
+
+  const newFeedbackCount = (placeFeedbackCount ?? 0) + (siteFeedbackCount ?? 0);
+
+  return (
+    <main className="flex h-screen flex-col bg-[#f6f1e7]">
+      <div className="flex shrink-0 items-center justify-between px-6 py-3">
+        <p className="text-sm text-stone-600">검수 대기: {pendingCount ?? 0}개</p>
+        <Link href="/review/feedback" className="text-sm text-amber-700 underline">
+          피드백 확인{newFeedbackCount > 0 ? ` (${newFeedbackCount})` : ""}
+        </Link>
+      </div>
+      {nextPlace ? (
+        <ReviewCard place={nextPlace as Place} />
+      ) : (
+        <p className="px-6 text-stone-600">검수할 장소가 없어요 🎉</p>
+      )}
+    </main>
+  );
+}
