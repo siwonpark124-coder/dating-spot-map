@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Place, MoodTag } from "@/types/place";
 import { MOOD_TAGS, CATEGORY_LABELS, PRICE_TIER_LABELS } from "@/lib/constants";
-import { publishPlace, rejectPlace } from "@/app/review/actions";
 
 const PRICE_TIER_OPTIONS: (1 | 2 | 3)[] = [1, 2, 3];
 
@@ -11,12 +10,26 @@ function toHttps(url: string) {
   return url.startsWith("http://") ? `https://${url.slice("http://".length)}` : url;
 }
 
-export default function ReviewCard({ place }: { place: Place }) {
+interface PlaceEditorProps {
+  place: Place;
+  primaryAction: (formData: FormData) => void | Promise<void>;
+  primaryLabel: string;
+  secondaryAction: (formData: FormData) => void | Promise<void>;
+  secondaryLabel: string;
+}
+
+export default function PlaceEditor({
+  place,
+  primaryAction,
+  primaryLabel,
+  secondaryAction,
+  secondaryLabel,
+}: PlaceEditorProps) {
   const [moodTags, setMoodTags] = useState<MoodTag[]>(place.mood_tags ?? []);
   const [priceTier, setPriceTier] = useState<1 | 2 | 3 | null>(place.price_tier);
   const [note, setNote] = useState(place.curation_note ?? "");
 
-  const canPublish = moodTags.length > 0 && priceTier !== null;
+  const canSubmit = moodTags.length > 0 && priceTier !== null;
 
   function toggleTag(tag: MoodTag) {
     setMoodTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
@@ -88,13 +101,13 @@ export default function ReviewCard({ place }: { place: Place }) {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
-            placeholder="특별히 덧붙일 말이 있으면 적어주세요 (없어도 발행 가능, 후기가 쌓이면 그게 대신해줘요)"
+            placeholder="특별히 덧붙일 말이 있으면 적어주세요 (없어도 괜찮아요, 후기가 쌓이면 그게 대신해줘요)"
             className="w-full rounded border border-stone-300 p-2 text-sm text-stone-800 focus:border-stone-500 focus:outline-none"
           />
         </div>
 
         <div className="flex gap-2">
-          <form action={publishPlace} className="flex-1">
+          <form action={primaryAction} className="flex-1">
             <input type="hidden" name="id" value={place.id} />
             {moodTags.map((tag) => (
               <input key={tag} type="hidden" name="mood_tags" value={tag} />
@@ -103,19 +116,19 @@ export default function ReviewCard({ place }: { place: Place }) {
             <input type="hidden" name="curation_note" value={note} />
             <button
               type="submit"
-              disabled={!canPublish}
+              disabled={!canSubmit}
               className="w-full rounded-lg bg-stone-800 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              발행
+              {primaryLabel}
             </button>
           </form>
-          <form action={rejectPlace}>
+          <form action={secondaryAction}>
             <input type="hidden" name="id" value={place.id} />
             <button
               type="submit"
               className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50"
             >
-              제외
+              {secondaryLabel}
             </button>
           </form>
         </div>

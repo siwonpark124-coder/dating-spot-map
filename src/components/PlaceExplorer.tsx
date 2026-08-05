@@ -49,9 +49,17 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
           priceTiers={priceTiers}
           onPriceTiersChange={setPriceTiers}
         />
-        <Link href="/feedback" className="shrink-0 text-sm text-stone-500 underline hover:text-stone-700">
-          피드백 남기기
-        </Link>
+        <div className="flex shrink-0 items-center gap-3 text-sm text-stone-500">
+          <Link href="/feedback" className="underline hover:text-stone-700">
+            피드백 남기기
+          </Link>
+          <Link href="/course-suggestions" className="underline hover:text-stone-700">
+            코스 추천하기
+          </Link>
+          <Link href="/business" className="underline hover:text-stone-700">
+            비즈니스 협업
+          </Link>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">

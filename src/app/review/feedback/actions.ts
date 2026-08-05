@@ -19,3 +19,19 @@ export async function resolveSiteFeedback(formData: FormData) {
   if (error) console.error("resolveSiteFeedback failed:", error.message);
   revalidatePath("/review/feedback");
 }
+
+export async function resolveCourseSuggestion(formData: FormData) {
+  if (!(await isAuthenticated())) return;
+  const id = String(formData.get("id"));
+  const { error } = await supabaseAdmin.from("course_suggestions").update({ status: "resolved" }).eq("id", id);
+  if (error) console.error("resolveCourseSuggestion failed:", error.message);
+  revalidatePath("/review/feedback");
+}
+
+export async function resolveBusinessInquiry(formData: FormData) {
+  if (!(await isAuthenticated())) return;
+  const id = String(formData.get("id"));
+  const { error } = await supabaseAdmin.from("business_inquiries").update({ status: "resolved" }).eq("id", id);
+  if (error) console.error("resolveBusinessInquiry failed:", error.message);
+  revalidatePath("/review/feedback");
+}

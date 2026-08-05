@@ -17,3 +17,20 @@ export interface SiteFeedback {
   status: FeedbackStatus;
   created_at: string;
 }
+
+export interface CourseSuggestion {
+  id: string;
+  nickname: string | null;
+  content: string;
+  status: FeedbackStatus;
+  created_at: string;
+}
+
+export interface BusinessInquiry {
+  id: string;
+  business_name: string;
+  contact: string;
+  message: string;
+  status: FeedbackStatus;
+  created_at: string;
+}

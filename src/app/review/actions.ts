@@ -68,3 +68,46 @@ export async function rejectPlace(formData: FormData) {
 
   revalidatePath("/review");
 }
+
+// 이미 발행된 장소를 수정할 때 사용 (분위기/가격대/추천 이유). status는 published로 유지.
+export async function updatePublishedPlace(formData: FormData) {
+  if (!(await isAuthenticated())) return;
+
+  const id = String(formData.get("id"));
+  const priceTierRaw = formData.get("price_tier");
+  const curationNote = String(formData.get("curation_note") ?? "").trim();
+  const moodTags = formData.getAll("mood_tags").map(String) as MoodTag[];
+
+  if (!priceTierRaw || moodTags.length === 0) {
+    return;
+  }
+
+  const { error } = await supabaseAdmin
+    .from("places")
+    .update({
+      mood_tags: moodTags,
+      price_tier: Number(priceTierRaw),
+      curation_note: curationNote || null,
+    })
+    .eq("id", id);
+
+  if (error) console.error("updatePublishedPlace failed:", error.message);
+
+  revalidatePath("/review/published");
+  revalidatePath("/");
+  revalidatePath(`/place/${id}`);
+}
+
+// 이미 발행된 장소를 내림 (공개 사이트에서 제거)
+export async function unpublishPlace(formData: FormData) {
+  if (!(await isAuthenticated())) return;
+
+  const id = String(formData.get("id"));
+  const { error } = await supabaseAdmin.from("places").update({ status: "rejected" }).eq("id", id);
+
+  if (error) console.error("unpublishPlace failed:", error.message);
+
+  revalidatePath("/review/published");
+  revalidatePath("/");
+  revalidatePath(`/place/${id}`);
+}

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { Place } from "@/types/place";
-import ReviewCard from "@/components/ReviewCard";
-import { authenticate, isAuthenticated } from "./actions";
+import PlaceEditor from "@/components/PlaceEditor";
+import { authenticate, isAuthenticated, publishPlace, rejectPlace } from "./actions";
 
 export default async function ReviewPage() {
   const authed = await isAuthenticated();
@@ -53,18 +53,46 @@ export default async function ReviewPage() {
     .select("id", { count: "exact", head: true })
     .eq("status", "new");
 
-  const newFeedbackCount = (placeFeedbackCount ?? 0) + (siteFeedbackCount ?? 0);
+  const { count: courseSuggestionCount } = await supabaseAdmin
+    .from("course_suggestions")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "new");
+
+  const { count: businessInquiryCount } = await supabaseAdmin
+    .from("business_inquiries")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "new");
+
+  const newFeedbackCount =
+    (placeFeedbackCount ?? 0) +
+    (siteFeedbackCount ?? 0) +
+    (courseSuggestionCount ?? 0) +
+    (businessInquiryCount ?? 0);
 
   return (
     <main className="flex h-screen flex-col bg-[#f6f1e7]">
       <div className="flex shrink-0 items-center justify-between px-6 py-3">
         <p className="text-sm text-stone-600">검수 대기: {pendingCount ?? 0}개</p>
-        <Link href="/review/feedback" className="text-sm text-amber-700 underline">
-          피드백 확인{newFeedbackCount > 0 ? ` (${newFeedbackCount})` : ""}
-        </Link>
+        <div className="flex items-center gap-3 text-sm">
+          <Link href="/review/map" className="text-amber-700 underline">
+            지도로 빠르게 제외하기
+          </Link>
+          <Link href="/review/published" className="text-amber-700 underline">
+            발행된 장소 수정
+          </Link>
+          <Link href="/review/feedback" className="text-amber-700 underline">
+            피드백 확인{newFeedbackCount > 0 ? ` (${newFeedbackCount})` : ""}
+          </Link>
+        </div>
       </div>
       {nextPlace ? (
-        <ReviewCard place={nextPlace as Place} />
+        <PlaceEditor
+          place={nextPlace as Place}
+          primaryAction={publishPlace}
+          primaryLabel="발행"
+          secondaryAction={rejectPlace}
+          secondaryLabel="제외"
+        />
       ) : (
         <p className="px-6 text-stone-600">검수할 장소가 없어요 🎉</p>
       )}

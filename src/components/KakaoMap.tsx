@@ -32,14 +32,18 @@ function buildMarkerImageSrc(category: PlaceCategory) {
 interface KakaoMapProps {
   places: Place[];
   center?: { lat: number; lng: number };
+  onPlaceClick?: (place: Place) => void;
+  /** false면 장소 목록이 바뀌어도 처음 한 번만 범위를 맞추고, 이후엔 사용자가 보던 위치를 유지함 */
+  refitBoundsOnChange?: boolean;
 }
 
-export default function KakaoMap({ places, center }: KakaoMapProps) {
+export default function KakaoMap({ places, center, onPlaceClick, refitBoundsOnChange = true }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const markerImageCacheRef = useRef<Partial<Record<PlaceCategory, any>>>({});
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const hasFitBoundsRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
 
   // SDK 로드 + 지도 인스턴스 생성 (한 번만)
@@ -125,16 +129,21 @@ export default function KakaoMap({ places, center }: KakaoMapProps) {
 
       window.kakao.maps.event.addListener(marker, "mouseover", () => infowindow.open(map, marker));
       window.kakao.maps.event.addListener(marker, "mouseout", () => infowindow.close());
+      if (onPlaceClick) {
+        window.kakao.maps.event.addListener(marker, "click", () => onPlaceClick(place));
+      }
 
       markersRef.current.push(marker);
     });
 
-    // 필터링된 장소들이 다 보이도록 지도 범위를 자동으로 맞춤
-    if (places.length > 0) {
+    // 장소들이 다 보이도록 지도 범위를 맞춤 (refitBoundsOnChange가 false면 최초 1회만)
+    if (places.length > 0 && (refitBoundsOnChange || !hasFitBoundsRef.current)) {
       const bounds = new window.kakao.maps.LatLngBounds();
       places.forEach((place) => bounds.extend(new window.kakao.maps.LatLng(place.lat, place.lng)));
       map.setBounds(bounds);
+      hasFitBoundsRef.current = true;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places, mapReady]);
 
   if (!process.env.NEXT_PUBLIC_KAKAO_MAP_KEY) {
