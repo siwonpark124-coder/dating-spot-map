@@ -41,6 +41,12 @@ export default async function ReviewPage() {
     .select("id", { count: "exact", head: true })
     .eq("status", "rejected");
 
+  const { count: draftedCount } = await supabaseAdmin
+    .from("places")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending_review")
+    .not("mood_tags", "eq", "{}");
+
   const { data: nextPlace } = await supabaseAdmin
     .from("places")
     .select("*")
@@ -84,6 +90,9 @@ export default async function ReviewPage() {
         <div className="flex items-center gap-3 text-sm">
           <Link href="/review/map" className="text-amber-700 underline">
             지도로 빠르게 제외하기
+          </Link>
+          <Link href="/review/drafted" className="text-amber-700 underline">
+            초안 준비된 장소{draftedCount ? ` (${draftedCount})` : ""}
           </Link>
           <Link href="/review/published" className="text-amber-700 underline">
             발행된 장소 수정
