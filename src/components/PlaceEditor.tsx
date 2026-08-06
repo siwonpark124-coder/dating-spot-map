@@ -19,6 +19,8 @@ interface PlaceEditorProps {
   secondaryAction: (formData: FormData) => void | Promise<void>;
   secondaryLabel: string;
   imageCheck?: ImageCheckResult;
+  // 검수 대기열에서 몇 번째 카드인지 (예: 42/677). 큐 흐름이 아닌 화면(발행된 장소 수정 등)에서는 생략.
+  progress?: { current: number; total: number };
 }
 
 export default function PlaceEditor({
@@ -28,6 +30,7 @@ export default function PlaceEditor({
   secondaryAction,
   secondaryLabel,
   imageCheck,
+  progress,
 }: PlaceEditorProps) {
   const [moodTags, setMoodTags] = useState<MoodTag[]>(place.mood_tags ?? []);
   const [priceTier, setPriceTier] = useState<1 | 2 | 3 | null>(place.price_tier);
@@ -83,12 +86,30 @@ export default function PlaceEditor({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <div className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-b border-stone-200 bg-white p-6 md:w-[420px] md:border-b-0 md:border-r">
+    <div className="flex min-h-0 flex-1 justify-center overflow-y-auto p-4 md:p-8">
+      <div className="flex w-full max-w-2xl flex-col gap-4 self-start rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+        {progress && (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-xs font-medium text-stone-500">
+              <span>
+                {progress.current} / {progress.total}
+              </span>
+              <span>{Math.round((progress.current / Math.max(progress.total, 1)) * 100)}%</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
+              <div
+                className="h-full rounded-full bg-stone-800 transition-all"
+                style={{ width: `${Math.min(100, (progress.current / Math.max(progress.total, 1)) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-bold text-stone-900">{place.name}</h2>
           <p className="text-sm text-stone-500">
-            {CATEGORY_LABELS[place.category]} · {place.neighborhood} · {place.address}
+            {place.cuisine ? `${place.cuisine} ${CATEGORY_LABELS[place.category]}` : CATEGORY_LABELS[place.category]} ·{" "}
+            {place.neighborhood} · {place.address}
           </p>
           {place.kakao_map_url && (
             <a
@@ -99,6 +120,21 @@ export default function PlaceEditor({
             >
               새 탭에서 열기 →
             </a>
+          )}
+        </div>
+
+        <div className="h-56 w-full overflow-hidden rounded-lg border border-stone-200">
+          {place.kakao_map_url ? (
+            <iframe
+              key={place.id}
+              src={toHttps(place.kakao_map_url)}
+              className="h-full w-full border-0"
+              title={`${place.name} 카카오맵`}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-stone-100 text-sm text-stone-500">
+              카카오맵 링크가 없어요
+            </div>
           )}
         </div>
 
@@ -229,21 +265,6 @@ export default function PlaceEditor({
               ? `✅ ${feedback.kind === "primary" ? primaryLabel : secondaryLabel} 완료`
               : "⚠️ 처리에 실패했어요. 페이지를 새로고침한 뒤 다시 시도해주세요."}
           </p>
-        )}
-      </div>
-
-      <div className="min-h-[50vh] flex-1 md:min-h-0">
-        {place.kakao_map_url ? (
-          <iframe
-            key={place.id}
-            src={toHttps(place.kakao_map_url)}
-            className="h-full w-full border-0"
-            title={`${place.name} 카카오맵`}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-stone-100 text-sm text-stone-500">
-            카카오맵 링크가 없어요
-          </div>
         )}
       </div>
     </div>

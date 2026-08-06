@@ -34,6 +34,7 @@ export default async function ReviewPage() {
   const [
     { count: pendingCount },
     { count: rejectedCount },
+    { count: publishedCount },
     { count: draftedCount },
     { data: nextPlace },
     { count: placeFeedbackCount },
@@ -43,6 +44,7 @@ export default async function ReviewPage() {
   ] = await Promise.all([
     supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
     supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "rejected"),
+    supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "published"),
     supabaseAdmin
       .from("places")
       .select("id", { count: "exact", head: true })
@@ -60,6 +62,10 @@ export default async function ReviewPage() {
     supabaseAdmin.from("course_suggestions").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabaseAdmin.from("business_inquiries").select("id", { count: "exact", head: true }).eq("status", "new"),
   ]);
+
+  const decidedCount = (publishedCount ?? 0) + (rejectedCount ?? 0);
+  const totalCount = decidedCount + (pendingCount ?? 0);
+  const progress = nextPlace ? { current: decidedCount + 1, total: totalCount } : undefined;
 
   const newFeedbackCount =
     (placeFeedbackCount ?? 0) +
@@ -99,6 +105,7 @@ export default async function ReviewPage() {
           secondaryAction={rejectPlace}
           secondaryLabel="제외"
           imageCheck={imageCheck}
+          progress={progress}
         />
       ) : (
         <p className="px-6 text-stone-600">검수할 장소가 없어요 🎉</p>

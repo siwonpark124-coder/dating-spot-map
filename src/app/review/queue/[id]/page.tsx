@@ -24,7 +24,13 @@ export default async function QueuePlacePage({ params }: { params: Promise<{ id:
 
   const { id } = await params;
 
-  const { data: place } = await supabaseAdmin.from("places").select("*").eq("id", id).maybeSingle();
+  const [{ data: place }, { count: pendingCount }, { count: rejectedCount }, { count: publishedCount }] =
+    await Promise.all([
+      supabaseAdmin.from("places").select("*").eq("id", id).maybeSingle(),
+      supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
+      supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "rejected"),
+      supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "published"),
+    ]);
 
   if (!place) {
     return (
@@ -47,6 +53,8 @@ export default async function QueuePlacePage({ params }: { params: Promise<{ id:
   }
 
   const imageCheck = await checkImageUrl(place.cover_image_url);
+  const decidedCount = (publishedCount ?? 0) + (rejectedCount ?? 0);
+  const totalCount = decidedCount + (pendingCount ?? 0);
 
   return (
     <main className="flex h-screen flex-col bg-[#f6f1e7]">
@@ -62,6 +70,7 @@ export default async function QueuePlacePage({ params }: { params: Promise<{ id:
         secondaryAction={rejectPlace}
         secondaryLabel="제외"
         imageCheck={imageCheck}
+        progress={{ current: decidedCount + 1, total: totalCount }}
       />
     </main>
   );
