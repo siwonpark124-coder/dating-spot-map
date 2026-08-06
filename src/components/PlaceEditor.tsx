@@ -87,7 +87,8 @@ export default function PlaceEditor({
 
   return (
     <div className="flex min-h-0 flex-1 justify-center overflow-y-auto p-4 md:p-8">
-      <div className="flex w-full max-w-2xl flex-col gap-4 self-start rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+      <div className="flex w-full max-w-5xl flex-col gap-6 self-start rounded-2xl border border-stone-200 bg-white p-6 shadow-sm md:flex-row">
+        <div className="flex w-full flex-col gap-4 md:w-[380px] md:shrink-0">
         {progress && (
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-xs font-medium text-stone-500">
@@ -120,21 +121,6 @@ export default function PlaceEditor({
             >
               새 탭에서 열기 →
             </a>
-          )}
-        </div>
-
-        <div className="h-56 w-full overflow-hidden rounded-lg border border-stone-200">
-          {place.kakao_map_url ? (
-            <iframe
-              key={place.id}
-              src={toHttps(place.kakao_map_url)}
-              className="h-full w-full border-0"
-              title={`${place.name} 카카오맵`}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-stone-100 text-sm text-stone-500">
-              카카오맵 링크가 없어요
-            </div>
           )}
         </div>
 
@@ -266,6 +252,22 @@ export default function PlaceEditor({
               : "⚠️ 처리에 실패했어요. 페이지를 새로고침한 뒤 다시 시도해주세요."}
           </p>
         )}
+        </div>
+
+        <div className="min-h-[320px] w-full flex-1 overflow-hidden rounded-lg border border-stone-200 md:min-h-[520px]">
+          {place.kakao_map_url ? (
+            <iframe
+              key={place.id}
+              src={toHttps(place.kakao_map_url)}
+              className="h-full w-full border-0"
+              title={`${place.name} 카카오맵`}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-stone-100 text-sm text-stone-500">
+              카카오맵 링크가 없어요
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
