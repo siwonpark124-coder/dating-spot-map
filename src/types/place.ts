@@ -18,6 +18,8 @@ export interface Place {
   cuisine: string | null;
   curation_note: string | null;
   business_hours: string | null;
+  // 첫 만남(1차) 자리로 적합한지. false면 "첫 만남" 필터를 켰을 때 숨겨진다.
+  first_meeting_ok: boolean;
   cover_image_url: string | null;
   kakao_map_url: string | null;
   naver_map_url: string | null;

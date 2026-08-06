@@ -36,6 +36,7 @@ export default function PlaceEditor({
   const [priceTier, setPriceTier] = useState<1 | 2 | 3 | null>(place.price_tier);
   const [cuisine, setCuisine] = useState(place.cuisine ?? "");
   const [note, setNote] = useState(place.curation_note ?? "");
+  const [firstMeetingOk, setFirstMeetingOk] = useState(place.first_meeting_ok ?? true);
   const [rejectionReason, setRejectionReason] = useState("");
   const [feedback, setFeedback] = useState<{ kind: "primary" | "secondary"; status: "ok" | "error" } | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -55,6 +56,7 @@ export default function PlaceEditor({
     formData.set("price_tier", String(priceTier ?? ""));
     formData.set("cuisine", cuisine.trim());
     formData.set("curation_note", note);
+    formData.set("first_meeting_ok", String(firstMeetingOk));
 
     setFeedback(null);
     startTransition(async () => {
@@ -201,6 +203,25 @@ export default function PlaceEditor({
               <option key={c} value={c} />
             ))}
           </datalist>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs font-semibold text-stone-500">첫 만남</p>
+          <label className="flex cursor-pointer items-start gap-2 rounded border border-stone-300 p-2 text-sm text-stone-800">
+            <input
+              type="checkbox"
+              checked={firstMeetingOk}
+              onChange={(e) => setFirstMeetingOk(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              첫 만남(1차) 자리로 적합
+              <span className="block text-xs text-stone-500">
+                끄면 &apos;첫 만남&apos; 필터에서 숨겨집니다. 시끌벅적하거나 냄새·손이 신경 쓰이는 곳,
+                테이크아웃 위주인 곳은 꺼주세요.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div>

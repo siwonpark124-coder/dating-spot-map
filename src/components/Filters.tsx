@@ -1,10 +1,8 @@
 "use client";
 
 import { MOOD_TAGS, CATEGORY_LABELS, PRICE_TIER_LABELS, NEIGHBORHOODS } from "@/lib/constants";
-import { MoodTag, PlaceCategory } from "@/types/place";
-
-export type CategoryFilter = PlaceCategory | "all";
-export type NeighborhoodFilter = (typeof NEIGHBORHOODS)[number] | "all";
+import { MoodTag } from "@/types/place";
+import { CategoryFilter, NeighborhoodFilter } from "@/lib/placeFilters";
 
 interface FiltersProps {
   neighborhood: NeighborhoodFilter;
@@ -15,6 +13,8 @@ interface FiltersProps {
   onMoodTagsChange: (tags: MoodTag[]) => void;
   priceTiers: (1 | 2 | 3)[];
   onPriceTiersChange: (tiers: (1 | 2 | 3)[]) => void;
+  firstMeetingOnly: boolean;
+  onFirstMeetingOnlyChange: (only: boolean) => void;
 }
 
 const NEIGHBORHOOD_OPTIONS: NeighborhoodFilter[] = ["all", ...NEIGHBORHOODS];
@@ -34,9 +34,28 @@ export default function Filters({
   onMoodTagsChange,
   priceTiers,
   onPriceTiersChange,
+  firstMeetingOnly,
+  onFirstMeetingOnlyChange,
 }: FiltersProps) {
   return (
     <div className="flex flex-1 flex-wrap items-center gap-2">
+      {/* 다른 필터와 성격이 달라(장소 성격 자체를 거르는 스위치) 맨 앞에 따로 둔다. */}
+      <button
+        type="button"
+        aria-pressed={firstMeetingOnly}
+        onClick={() => onFirstMeetingOnlyChange(!firstMeetingOnly)}
+        title="시끌벅적하거나 냄새·손이 신경 쓰이는 곳을 빼고, 첫 만남에 무난한 곳만 봅니다"
+        className={`shrink-0 rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
+          firstMeetingOnly
+            ? "border-rose-700 bg-rose-700 text-white"
+            : "border-rose-300 text-rose-800 hover:bg-rose-50"
+        }`}
+      >
+        첫 만남
+      </button>
+
+      <div className="h-5 w-px shrink-0 bg-stone-300" />
+
       <div className="flex flex-wrap gap-1.5">
         {NEIGHBORHOOD_OPTIONS.map((option) => (
           <button

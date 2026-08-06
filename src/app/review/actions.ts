@@ -38,6 +38,7 @@ export async function publishPlace(formData: FormData) {
   const cuisine = String(formData.get("cuisine") ?? "").trim();
   const curationNote = String(formData.get("curation_note") ?? "").trim();
   const moodTags = formData.getAll("mood_tags").map(String) as MoodTag[];
+  const firstMeetingOk = formData.get("first_meeting_ok") !== "false";
 
   if (!priceTierRaw || moodTags.length === 0) {
     return; // 필수 항목(분위기, 가격대) 누락 시 발행하지 않음 — 추천 이유는 선택
@@ -51,6 +52,7 @@ export async function publishPlace(formData: FormData) {
       price_tier: Number(priceTierRaw),
       cuisine: cuisine || null,
       curation_note: curationNote || null,
+      first_meeting_ok: firstMeetingOk,
     })
     .eq("id", id);
 
@@ -104,6 +106,7 @@ export async function updatePublishedPlace(formData: FormData) {
   const cuisine = String(formData.get("cuisine") ?? "").trim();
   const curationNote = String(formData.get("curation_note") ?? "").trim();
   const moodTags = formData.getAll("mood_tags").map(String) as MoodTag[];
+  const firstMeetingOk = formData.get("first_meeting_ok") !== "false";
 
   if (!priceTierRaw || moodTags.length === 0) {
     return;
@@ -116,6 +119,7 @@ export async function updatePublishedPlace(formData: FormData) {
       price_tier: Number(priceTierRaw),
       cuisine: cuisine || null,
       curation_note: curationNote || null,
+      first_meeting_ok: firstMeetingOk,
     })
     .eq("id", id);
 

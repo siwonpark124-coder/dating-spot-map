@@ -29,5 +29,6 @@ export default async function Home() {
     return { ...rest, review_count: extractReviewCount(reviews) } as PlaceWithReviewCount;
   });
 
+  // force-dynamic이라 프리렌더가 없으므로 useSearchParams용 Suspense 경계는 필요 없다.
   return <PlaceExplorer places={placesWithReviewCount} />;
 }
