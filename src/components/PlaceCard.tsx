@@ -3,9 +3,14 @@ import Link from "next/link";
 import { PlaceWithReviewCount } from "@/types/place";
 import { CATEGORY_LABELS, PRICE_TIER_LABELS } from "@/lib/constants";
 
-function PlaceCard({ place }: { place: PlaceWithReviewCount }) {
+function PlaceCard({ place, selected = false }: { place: PlaceWithReviewCount; selected?: boolean }) {
   return (
-    <article className="flex gap-3 rounded-lg border border-stone-200 bg-white p-3">
+    <article
+      data-place-id={place.id}
+      className={`flex scroll-mt-3 gap-3 rounded-lg border bg-white p-3 transition-colors ${
+        selected ? "border-amber-700 ring-2 ring-amber-700/30" : "border-stone-200"
+      }`}
+    >
       {place.cover_image_url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img

@@ -29,25 +29,43 @@ function buildMarkerImageSrc(category: PlaceCategory) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
+/** 마커를 클릭했을 때 확대할 지도 레벨 (숫자가 작을수록 확대) */
+const FOCUS_LEVEL = 3;
+
 interface KakaoMapProps {
   places: Place[];
   center?: { lat: number; lng: number };
   onPlaceClick?: (place: Place) => void;
+  /** 이 장소로 지도를 확대·이동시킴. 마커 클릭 외에 목록 쪽에서 선택했을 때도 쓸 수 있다. */
+  focusedPlaceId?: string | null;
   /** false면 장소 목록이 바뀌어도 처음 한 번만 범위를 맞추고, 이후엔 사용자가 보던 위치를 유지함 */
   refitBoundsOnChange?: boolean;
 }
 
-export default function KakaoMap({ places, center, onPlaceClick, refitBoundsOnChange = true }: KakaoMapProps) {
+export default function KakaoMap({
+  places,
+  center,
+  onPlaceClick,
+  focusedPlaceId,
+  refitBoundsOnChange = true,
+}: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   // 장소 id -> 마커. 필터가 바뀌어도 겹치는 마커는 그대로 두고 차이만 반영한다.
   const markersRef = useRef<Map<string, any>>(new Map());
   // InfoWindow는 한 번에 하나만 뜨므로 장소마다 만들지 않고 하나를 돌려쓴다.
   const infoWindowRef = useRef<any>(null);
+  // 마커를 재사용하므로 클릭 리스너는 마커를 만든 시점의 콜백을 계속 붙들고 있게 된다.
+  // 항상 최신 콜백을 부르도록 ref를 거친다.
+  const onPlaceClickRef = useRef(onPlaceClick);
   const markerImageCacheRef = useRef<Partial<Record<PlaceCategory, any>>>({});
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const hasFitBoundsRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    onPlaceClickRef.current = onPlaceClick;
+  }, [onPlaceClick]);
 
   // SDK 로드 + 지도 인스턴스 생성 (한 번만)
   useEffect(() => {
@@ -148,9 +166,7 @@ export default function KakaoMap({ places, center, onPlaceClick, refitBoundsOnCh
         infoWindow.open(map, marker);
       });
       window.kakao.maps.event.addListener(marker, "mouseout", () => infoWindow.close());
-      if (onPlaceClick) {
-        window.kakao.maps.event.addListener(marker, "click", () => onPlaceClick(place));
-      }
+      window.kakao.maps.event.addListener(marker, "click", () => onPlaceClickRef.current?.(place));
 
       markersRef.current.set(place.id, marker);
     });
@@ -164,6 +180,19 @@ export default function KakaoMap({ places, center, onPlaceClick, refitBoundsOnCh
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places, mapReady]);
+
+  // 선택된 장소로 확대·이동. 이미 그보다 확대해서 보고 있다면 배율은 건드리지 않는다.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !focusedPlaceId) return;
+    const place = places.find((p) => p.id === focusedPlaceId);
+    if (!place) return;
+
+    const map = mapRef.current;
+    const position = new window.kakao.maps.LatLng(place.lat, place.lng);
+    if (map.getLevel() > FOCUS_LEVEL) map.setLevel(FOCUS_LEVEL);
+    map.panTo(position);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedPlaceId, mapReady]);
 
   if (!process.env.NEXT_PUBLIC_KAKAO_MAP_KEY) {
     return (

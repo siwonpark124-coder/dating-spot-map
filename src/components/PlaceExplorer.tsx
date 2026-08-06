@@ -72,26 +72,46 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
     listRef.current?.scrollTo({ top: 0 });
   }, [filteredPlaces]);
 
+  // 지도에서 마커를 누르면 목록에서도 그 카드를 표시해준다 (이동은 하지 않음).
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const selectedIndex = useMemo(
+    () => (selectedPlaceId ? filteredPlaces.findIndex((p) => p.id === selectedPlaceId) : -1),
+    [filteredPlaces, selectedPlaceId],
+  );
+
+  // 선택한 카드가 아직 안 그려진 페이지에 있으면 거기까지는 펼친다.
+  // effect에서 visibleCount를 올리면 렌더가 한 번 더 도니 파생값으로 계산한다.
+  const effectiveCount = Math.max(visibleCount, selectedIndex + 1);
+
+  const visiblePlaces = useMemo(
+    () => filteredPlaces.slice(0, effectiveCount),
+    [filteredPlaces, effectiveCount],
+  );
+
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || visibleCount >= filteredPlaces.length) return;
+    if (!sentinel || effectiveCount >= filteredPlaces.length) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredPlaces.length));
+          setVisibleCount(Math.min(effectiveCount + PAGE_SIZE, filteredPlaces.length));
         }
       },
       { root: listRef.current, rootMargin: "400px" },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [visibleCount, filteredPlaces.length]);
+  }, [effectiveCount, filteredPlaces.length]);
 
-  const visiblePlaces = useMemo(
-    () => filteredPlaces.slice(0, visibleCount),
-    [filteredPlaces, visibleCount],
-  );
+  // 선택된 카드를 목록에서 보이는 위치로 스크롤.
+  // 목록이 길어 수만 픽셀을 이동할 수 있으니 부드러운 스크롤 대신 바로 이동한다.
+  useEffect(() => {
+    if (selectedIndex < 0) return;
+    listRef.current
+      ?.querySelector(`[data-place-id="${selectedPlaceId}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [selectedPlaceId, selectedIndex, effectiveCount]);
 
   return (
     <div className="flex h-screen flex-col">
@@ -136,7 +156,11 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <div className="min-h-[50vh] flex-1 md:min-h-0">
-          <KakaoMap places={filteredPlaces} />
+          <KakaoMap
+            places={filteredPlaces}
+            onPlaceClick={(place) => setSelectedPlaceId(place.id)}
+            focusedPlaceId={selectedPlaceId}
+          />
         </div>
 
         <div
@@ -174,21 +198,21 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
               </p>
             )}
             {visiblePlaces.map((place) => (
-              <PlaceCard key={place.id} place={place} />
+              <PlaceCard key={place.id} place={place} selected={place.id === selectedPlaceId} />
             ))}
 
             {/* 스크롤이 닿으면 자동으로 더 불러오지만, 버튼으로도 누를 수 있게 둔다.
                 IntersectionObserver가 동작하지 않는 환경에서 목록이 막히지 않도록. */}
-            {visibleCount < filteredPlaces.length && (
+            {effectiveCount < filteredPlaces.length && (
               <button
                 ref={sentinelRef}
                 type="button"
                 onClick={() =>
-                  setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredPlaces.length))
+                  setVisibleCount(Math.min(effectiveCount + PAGE_SIZE, filteredPlaces.length))
                 }
                 className="rounded-lg border border-stone-200 py-3 text-center text-xs text-stone-500 hover:bg-stone-100"
               >
-                {filteredPlaces.length - visibleCount}곳 더 보기
+                {filteredPlaces.length - effectiveCount}곳 더 보기
               </button>
             )}
           </div>
