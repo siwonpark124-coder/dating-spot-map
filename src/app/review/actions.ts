@@ -35,6 +35,7 @@ export async function publishPlace(formData: FormData) {
 
   const id = String(formData.get("id"));
   const priceTierRaw = formData.get("price_tier");
+  const cuisine = String(formData.get("cuisine") ?? "").trim();
   const curationNote = String(formData.get("curation_note") ?? "").trim();
   const moodTags = formData.getAll("mood_tags").map(String) as MoodTag[];
 
@@ -48,6 +49,7 @@ export async function publishPlace(formData: FormData) {
       status: "published",
       mood_tags: moodTags,
       price_tier: Number(priceTierRaw),
+      cuisine: cuisine || null,
       curation_note: curationNote || null,
     })
     .eq("id", id);
@@ -99,6 +101,7 @@ export async function updatePublishedPlace(formData: FormData) {
 
   const id = String(formData.get("id"));
   const priceTierRaw = formData.get("price_tier");
+  const cuisine = String(formData.get("cuisine") ?? "").trim();
   const curationNote = String(formData.get("curation_note") ?? "").trim();
   const moodTags = formData.getAll("mood_tags").map(String) as MoodTag[];
 
@@ -111,6 +114,7 @@ export async function updatePublishedPlace(formData: FormData) {
     .update({
       mood_tags: moodTags,
       price_tier: Number(priceTierRaw),
+      cuisine: cuisine || null,
       curation_note: curationNote || null,
     })
     .eq("id", id);

@@ -14,6 +14,8 @@ export interface Place {
   lng: number;
   price_tier: 1 | 2 | 3 | null;
   mood_tags: MoodTag[];
+  // 자유 텍스트. "한식", "일식-라멘", "베이커리"처럼 대분류 단독 또는 "대분류-세부" 형태로 적는 게 관행.
+  cuisine: string | null;
   curation_note: string | null;
   business_hours: string | null;
   cover_image_url: string | null;

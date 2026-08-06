@@ -18,7 +18,7 @@ export default function PlaceCard({ place }: { place: PlaceWithReviewCount }) {
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-stone-900 hover:underline">{place.name}</h2>
             <span className="text-xs text-stone-500">
-              {CATEGORY_LABELS[place.category]}
+              {place.cuisine ? `${place.cuisine} ${CATEGORY_LABELS[place.category]}` : CATEGORY_LABELS[place.category]}
               {place.price_tier && ` · ${PRICE_TIER_LABELS[place.price_tier]}`}
             </span>
           </div>

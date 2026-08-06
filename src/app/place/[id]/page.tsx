@@ -40,7 +40,9 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
         <div className="flex flex-col gap-2 rounded-xl border border-stone-200 bg-white p-6">
           <h1 className="text-xl font-bold text-stone-900">{typedPlace.name}</h1>
           <p className="text-sm text-stone-500">
-            {CATEGORY_LABELS[typedPlace.category]} · {typedPlace.neighborhood} · {typedPlace.address}
+            {typedPlace.cuisine ? `${typedPlace.cuisine} ${CATEGORY_LABELS[typedPlace.category]}` : CATEGORY_LABELS[typedPlace.category]}
+            {" · "}
+            {typedPlace.neighborhood} · {typedPlace.address}
             {typedPlace.price_tier && ` · ${PRICE_TIER_LABELS[typedPlace.price_tier]}`}
           </p>
 

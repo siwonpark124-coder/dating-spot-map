@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Place, MoodTag } from "@/types/place";
-import { MOOD_TAGS, CATEGORY_LABELS, PRICE_TIER_LABELS } from "@/lib/constants";
+import { MOOD_TAGS, CATEGORY_LABELS, PRICE_TIER_LABELS, CUISINE_SUGGESTIONS } from "@/lib/constants";
 import { ImageCheckResult } from "@/lib/checkImageUrl";
 
 const PRICE_TIER_OPTIONS: (1 | 2 | 3)[] = [1, 2, 3];
@@ -31,6 +31,7 @@ export default function PlaceEditor({
 }: PlaceEditorProps) {
   const [moodTags, setMoodTags] = useState<MoodTag[]>(place.mood_tags ?? []);
   const [priceTier, setPriceTier] = useState<1 | 2 | 3 | null>(place.price_tier);
+  const [cuisine, setCuisine] = useState(place.cuisine ?? "");
   const [note, setNote] = useState(place.curation_note ?? "");
   const [rejectionReason, setRejectionReason] = useState("");
   const [feedback, setFeedback] = useState<{ kind: "primary" | "secondary"; status: "ok" | "error" } | null>(null);
@@ -49,6 +50,7 @@ export default function PlaceEditor({
     formData.set("id", place.id);
     moodTags.forEach((tag) => formData.append("mood_tags", tag));
     formData.set("price_tier", String(priceTier ?? ""));
+    formData.set("cuisine", cuisine.trim());
     formData.set("curation_note", note);
 
     setFeedback(null);
@@ -160,6 +162,23 @@ export default function PlaceEditor({
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs font-semibold text-stone-500">음식 종류 (선택)</p>
+          <input
+            type="text"
+            list="cuisine-suggestions"
+            value={cuisine}
+            onChange={(e) => setCuisine(e.target.value)}
+            placeholder="예: 한식-감자탕, 일식-라멘, 이자카야, 디저트"
+            className="w-full rounded border border-stone-300 p-2 text-sm text-stone-800 focus:border-stone-500 focus:outline-none"
+          />
+          <datalist id="cuisine-suggestions">
+            {CUISINE_SUGGESTIONS.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </div>
 
         <div>
