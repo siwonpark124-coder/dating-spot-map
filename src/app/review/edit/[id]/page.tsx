@@ -38,6 +38,7 @@ export default async function EditPlacePage({ params }: { params: Promise<{ id: 
         </Link>
       </div>
       <PlaceEditor
+        key={place.id}
         place={place as Place}
         primaryAction={updatePublishedPlace}
         primaryLabel="저장"

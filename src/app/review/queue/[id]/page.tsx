@@ -64,6 +64,7 @@ export default async function QueuePlacePage({ params }: { params: Promise<{ id:
         </Link>
       </div>
       <PlaceEditor
+        key={place.id}
         place={place as Place}
         primaryAction={publishPlace}
         primaryLabel="발행"

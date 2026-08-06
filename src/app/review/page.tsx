@@ -99,6 +99,7 @@ export default async function ReviewPage() {
       </div>
       {nextPlace ? (
         <PlaceEditor
+          key={nextPlace.id}
           place={nextPlace as Place}
           primaryAction={publishPlace}
           primaryLabel="발행"
