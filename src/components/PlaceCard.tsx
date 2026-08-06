@@ -1,8 +1,9 @@
+import { memo } from "react";
 import Link from "next/link";
 import { PlaceWithReviewCount } from "@/types/place";
 import { CATEGORY_LABELS, PRICE_TIER_LABELS } from "@/lib/constants";
 
-export default function PlaceCard({ place }: { place: PlaceWithReviewCount }) {
+function PlaceCard({ place }: { place: PlaceWithReviewCount }) {
   return (
     <article className="flex gap-3 rounded-lg border border-stone-200 bg-white p-3">
       {place.cover_image_url && (
@@ -61,3 +62,7 @@ export default function PlaceCard({ place }: { place: PlaceWithReviewCount }) {
     </article>
   );
 }
+
+// 필터가 바뀌면 목록 전체가 다시 그려지는데, 살아남은 카드는 내용이 그대로다.
+// place 객체는 서버에서 온 뒤 바뀌지 않으므로 참조 비교만으로 충분히 걸러진다.
+export default memo(PlaceCard);

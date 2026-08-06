@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PlaceWithReviewCount } from "@/types/place";
@@ -14,6 +14,10 @@ import {
 import KakaoMap from "./KakaoMap";
 import PlaceCard from "./PlaceCard";
 import Filters from "./Filters";
+
+// 목록에 한 번에 그릴 카드 수. 400곳을 전부 그리면 카드 하나당 DOM 16개라
+// 필터를 누를 때마다 7천 노드를 다시 그리게 되고, 그게 체감 렉의 대부분이었다.
+const PAGE_SIZE = 40;
 
 export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount[] }) {
   // 필터 상태의 원본은 URL. 그래야 지금 보고 있는 화면을 그대로 링크로 보낼 수 있다.
@@ -49,6 +53,45 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
     }
     return filtered;
   }, [places, neighborhood, category, moodTags, priceTiers, firstMeetingOnly, sort]);
+
+  // 목록은 조금씩 늘려가며 그린다. 지도 마커는 필터 결과 전체를 계속 보여준다.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const listRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLButtonElement>(null);
+
+  // 필터가 바뀌면 처음 한 페이지부터 다시 보여준다.
+  // effect에서 되돌리면 렌더가 한 번 더 돌기 때문에 렌더 중에 조정한다.
+  const [lastFiltered, setLastFiltered] = useState(filteredPlaces);
+  if (lastFiltered !== filteredPlaces) {
+    setLastFiltered(filteredPlaces);
+    setVisibleCount(PAGE_SIZE);
+  }
+
+  // 스크롤 위치 되돌리기는 DOM 조작이라 커밋 이후에 한다.
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+  }, [filteredPlaces]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || visibleCount >= filteredPlaces.length) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredPlaces.length));
+        }
+      },
+      { root: listRef.current, rootMargin: "400px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [visibleCount, filteredPlaces.length]);
+
+  const visiblePlaces = useMemo(
+    () => filteredPlaces.slice(0, visibleCount),
+    [filteredPlaces, visibleCount],
+  );
 
   return (
     <div className="flex h-screen flex-col">
@@ -96,7 +139,10 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
           <KakaoMap places={filteredPlaces} />
         </div>
 
-        <div className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-stone-200 bg-[#fbf7ef] md:w-[380px] md:border-t-0 md:border-l">
+        <div
+          ref={listRef}
+          className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-stone-200 bg-[#fbf7ef] md:w-[380px] md:border-t-0 md:border-l"
+        >
           <div className="flex shrink-0 gap-1.5 border-b border-stone-200 p-3">
             <button
               type="button"
@@ -127,9 +173,24 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
                 {firstMeetingOnly && " '첫 만남'을 꺼보면 더 많은 곳이 나와요."}
               </p>
             )}
-            {filteredPlaces.map((place) => (
+            {visiblePlaces.map((place) => (
               <PlaceCard key={place.id} place={place} />
             ))}
+
+            {/* 스크롤이 닿으면 자동으로 더 불러오지만, 버튼으로도 누를 수 있게 둔다.
+                IntersectionObserver가 동작하지 않는 환경에서 목록이 막히지 않도록. */}
+            {visibleCount < filteredPlaces.length && (
+              <button
+                ref={sentinelRef}
+                type="button"
+                onClick={() =>
+                  setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredPlaces.length))
+                }
+                className="rounded-lg border border-stone-200 py-3 text-center text-xs text-stone-500 hover:bg-stone-100"
+              >
+                {filteredPlaces.length - visibleCount}곳 더 보기
+              </button>
+            )}
           </div>
         </div>
       </div>

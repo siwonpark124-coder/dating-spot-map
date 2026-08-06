@@ -17,3 +17,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Tailwind v4 preflight는 버튼 커서를 default로 되돌린다(v3와 달라진 부분).
+   이 앱은 버튼이 전부 클릭 대상이라 손가락 커서로 되돌린다. */
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}

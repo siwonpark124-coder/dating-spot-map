@@ -40,7 +40,10 @@ interface KakaoMapProps {
 export default function KakaoMap({ places, center, onPlaceClick, refitBoundsOnChange = true }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  // 장소 id -> 마커. 필터가 바뀌어도 겹치는 마커는 그대로 두고 차이만 반영한다.
+  const markersRef = useRef<Map<string, any>>(new Map());
+  // InfoWindow는 한 번에 하나만 뜨므로 장소마다 만들지 않고 하나를 돌려쓴다.
+  const infoWindowRef = useRef<any>(null);
   const markerImageCacheRef = useRef<Partial<Record<PlaceCategory, any>>>({});
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const hasFitBoundsRef = useRef(false);
@@ -98,15 +101,30 @@ export default function KakaoMap({ places, center, onPlaceClick, refitBoundsOnCh
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 필터링된 장소가 바뀔 때마다 마커만 다시 그림 (지도 재생성/재중심 없음)
+  // 필터링된 장소가 바뀔 때마다 마커 차이만 반영 (지도 재생성/재중심 없음).
+  // 전부 지웠다 다시 만들면 필터를 누를 때마다 마커 수백 개를 새로 붙이게 된다.
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     const map = mapRef.current;
 
-    markersRef.current.forEach((marker) => marker.setMap(null));
-    markersRef.current = [];
+    if (!infoWindowRef.current) {
+      infoWindowRef.current = new window.kakao.maps.InfoWindow({ content: "" });
+    }
+    const infoWindow = infoWindowRef.current;
+
+    const nextIds = new Set(places.map((place) => place.id));
+
+    // 이번 필터에서 빠진 마커만 지도에서 뗀다
+    markersRef.current.forEach((marker, id) => {
+      if (!nextIds.has(id)) {
+        marker.setMap(null);
+        markersRef.current.delete(id);
+      }
+    });
 
     places.forEach((place) => {
+      if (markersRef.current.has(place.id)) return; // 이미 떠 있는 마커는 건드리지 않는다
+
       let markerImage = markerImageCacheRef.current[place.category];
       if (!markerImage) {
         markerImage = new window.kakao.maps.MarkerImage(
@@ -123,17 +141,18 @@ export default function KakaoMap({ places, center, onPlaceClick, refitBoundsOnCh
         image: markerImage,
       });
 
-      const infowindow = new window.kakao.maps.InfoWindow({
-        content: `<div style="padding:6px 10px;font-size:13px;white-space:nowrap;">${place.name}</div>`,
+      window.kakao.maps.event.addListener(marker, "mouseover", () => {
+        infoWindow.setContent(
+          `<div style="padding:6px 10px;font-size:13px;white-space:nowrap;">${place.name}</div>`
+        );
+        infoWindow.open(map, marker);
       });
-
-      window.kakao.maps.event.addListener(marker, "mouseover", () => infowindow.open(map, marker));
-      window.kakao.maps.event.addListener(marker, "mouseout", () => infowindow.close());
+      window.kakao.maps.event.addListener(marker, "mouseout", () => infoWindow.close());
       if (onPlaceClick) {
         window.kakao.maps.event.addListener(marker, "click", () => onPlaceClick(place));
       }
 
-      markersRef.current.push(marker);
+      markersRef.current.set(place.id, marker);
     });
 
     // 장소들이 다 보이도록 지도 범위를 맞춤 (refitBoundsOnChange가 false면 최초 1회만)
