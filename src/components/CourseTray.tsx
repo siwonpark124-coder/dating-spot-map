@@ -16,9 +16,11 @@ interface CourseTrayProps {
   stops: CourseStop[];
   onChange: (stops: CourseStop[]) => void;
   onSave: (title: string) => Promise<string | null>;
+  /** 실제 보행 경로. 있으면 그 시간을, 없으면 직선 추정치를 보여준다. */
+  walkLegs?: { meters: number | null; minutes: number | null }[];
 }
 
-export default function CourseTray({ stops, onChange, onSave }: CourseTrayProps) {
+export default function CourseTray({ stops, onChange, onSave, walkLegs }: CourseTrayProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
@@ -28,7 +30,7 @@ export default function CourseTray({ stops, onChange, onSave }: CourseTrayProps)
 
   if (stops.length === 0) return null;
 
-  const legs = courseLegs(stops);
+  const legs = courseLegs(stops, walkLegs);
   const isFull = stops.length >= MAX_STOPS;
 
   async function handleSave() {
@@ -54,7 +56,7 @@ export default function CourseTray({ stops, onChange, onSave }: CourseTrayProps)
             내 코스 {stops.length}/{MAX_STOPS}
             {stops.length > 1 && (
               <span className="ml-2 font-normal text-stone-500">
-                걸어서 총 {totalWalkMinutes(stops)}분
+                걸어서 총 {totalWalkMinutes(stops, walkLegs)}분
               </span>
             )}
           </h2>

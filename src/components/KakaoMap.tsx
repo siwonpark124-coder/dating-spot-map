@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Place, PlaceCategory } from "@/types/place";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { CourseStop } from "@/lib/course";
-import { buildNumberedMarkerSrc } from "@/lib/kakaoSdk";
+import { buildCourseLines, buildNumberedMarkerSrc } from "@/lib/kakaoSdk";
 
 const DEFAULT_CENTER = { lat: 37.5563, lng: 126.9236 }; // 홍대입구역
 
@@ -67,8 +67,14 @@ interface KakaoMapProps {
   focusedPlaceId?: string | null;
   /** 코스에 담긴 정거장. 번호 마커와 순서대로 이은 선으로 덧그린다. */
   courseStops?: CourseStop[];
-  /** false면 장소 목록이 바뀌어도 처음 한 번만 범위를 맞추고, 이후엔 사용자가 보던 위치를 유지함 */
-  refitBoundsOnChange?: boolean;
+  /** 구간별 실제 보행 경로. 없으면 정거장끼리 직선으로 잇는다. */
+  walkLegs?: { path: [number, number][] }[];
+  /**
+   * 이 값이 바뀔 때만 지도 범위를 다시 맞춘다 (그리고 최초 1회).
+   * 카테고리·분위기처럼 위치가 그대로인 필터에서 시야가 튀지 않게 하려는 것.
+   * 동네처럼 보고 있어야 할 지역 자체가 달라지는 경우에만 넘긴다.
+   */
+  fitBoundsKey?: string;
 }
 
 export default function KakaoMap({
@@ -77,7 +83,8 @@ export default function KakaoMap({
   onPlaceClick,
   focusedPlaceId,
   courseStops,
-  refitBoundsOnChange = true,
+  walkLegs,
+  fitBoundsKey = "",
 }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -90,7 +97,7 @@ export default function KakaoMap({
   const onPlaceClickRef = useRef(onPlaceClick);
   const markerImageCacheRef = useRef<Partial<Record<PlaceCategory, any>>>({});
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const hasFitBoundsRef = useRef(false);
+  const lastFitKeyRef = useRef<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
@@ -199,15 +206,19 @@ export default function KakaoMap({
       markersRef.current.set(place.id, marker);
     });
 
-    // 장소들이 다 보이도록 지도 범위를 맞춤 (refitBoundsOnChange가 false면 최초 1회만)
-    if (places.length > 0 && (refitBoundsOnChange || !hasFitBoundsRef.current)) {
-      const bounds = new window.kakao.maps.LatLngBounds();
-      places.forEach((place) => bounds.extend(new window.kakao.maps.LatLng(place.lat, place.lng)));
-      map.setBounds(bounds);
-      hasFitBoundsRef.current = true;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places, mapReady]);
+
+  // 지도 범위 맞추기는 최초 1회, 그리고 fitBoundsKey가 바뀔 때만.
+  // 필터를 눌렀다고 보던 위치가 튀면 지도를 옮겨가며 훑어보기가 어렵다.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || places.length === 0) return;
+    if (lastFitKeyRef.current === fitBoundsKey) return;
+
+    const bounds = new window.kakao.maps.LatLngBounds();
+    places.forEach((place) => bounds.extend(new window.kakao.maps.LatLng(place.lat, place.lng)));
+    mapRef.current.setBounds(bounds);
+    lastFitKeyRef.current = fitBoundsKey;
+  }, [places, fitBoundsKey, mapReady]);
 
   // 코스 오버레이: 번호 마커와 이어주는 선. 기존 카테고리 마커 위에 덧그린다.
   useEffect(() => {
@@ -231,24 +242,13 @@ export default function KakaoMap({
         }),
     );
 
-    const line =
-      stops.length > 1
-        ? new window.kakao.maps.Polyline({
-            map,
-            path: stops.map((s) => new window.kakao.maps.LatLng(s.lat, s.lng)),
-            strokeWeight: 4,
-            strokeColor: "#92400e",
-            strokeOpacity: 0.85,
-            strokeStyle: "solid",
-            zIndex: 9,
-          })
-        : null;
+    const lines = buildCourseLines(map, stops, walkLegs);
 
     return () => {
       markers.forEach((m: any) => m.setMap(null));
-      line?.setMap(null);
+      lines.forEach((line) => line.setMap(null));
     };
-  }, [courseStops, mapReady]);
+  }, [courseStops, walkLegs, mapReady]);
 
   // 선택된 장소로 확대·이동. 이미 그보다 확대해서 보고 있다면 배율은 건드리지 않는다.
   useEffect(() => {

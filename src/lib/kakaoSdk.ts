@@ -43,6 +43,45 @@ export function loadKakaoSdk(): Promise<any> {
   return loadPromise;
 }
 
+interface LatLngLike {
+  lat: number;
+  lng: number;
+}
+
+/**
+ * 코스 구간을 잇는 선을 그린다.
+ * 보행 경로(walkLegs)가 있으면 실제 길을 따라 그리고, 없는 구간만 직선으로 잇는다.
+ * 직선 구간은 점선으로 그려서 "실제 경로가 아니라 이어준 선"임을 구분한다.
+ */
+export function buildCourseLines(
+  map: any,
+  stops: LatLngLike[],
+  walkLegs?: { path: [number, number][] }[],
+): any[] {
+  if (stops.length < 2) return [];
+  const kakao = window.kakao;
+
+  return stops.slice(0, -1).map((from, i) => {
+    const to = stops[i + 1];
+    const walkPath = walkLegs?.[i]?.path;
+    const hasRoute = Array.isArray(walkPath) && walkPath.length > 1;
+
+    const path = hasRoute
+      ? walkPath.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng))
+      : [new kakao.maps.LatLng(from.lat, from.lng), new kakao.maps.LatLng(to.lat, to.lng)];
+
+    return new kakao.maps.Polyline({
+      map,
+      path,
+      strokeWeight: 5,
+      strokeColor: "#92400e",
+      strokeOpacity: 0.85,
+      strokeStyle: hasRoute ? "solid" : "shortdash",
+      zIndex: 9,
+    });
+  });
+}
+
 /** 코스 순서를 나타내는 번호 마커 (①②③④ 대신 직접 그린다) */
 export function buildNumberedMarkerSrc(index: number): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46">

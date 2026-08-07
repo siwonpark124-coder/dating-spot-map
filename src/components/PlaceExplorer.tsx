@@ -24,6 +24,7 @@ import {
   subscribeDraft,
 } from "@/lib/course";
 import { CATEGORY_LABELS } from "@/lib/constants";
+import { useWalkRoute } from "@/lib/useWalkRoute";
 import { saveCourse } from "@/app/course/actions";
 import KakaoMap from "./KakaoMap";
 import PlaceCard from "./PlaceCard";
@@ -132,6 +133,7 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
   );
 
   const updateCourse = useCallback((stops: CourseStop[]) => saveDraft(stops), []);
+  const walkLegs = useWalkRoute(courseStops);
 
   const handleSaveCourse = useCallback(
     async (title: string) => {
@@ -207,6 +209,10 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
             onPlaceClick={(place) => setSelectedPlaceId(place.id)}
             focusedPlaceId={selectedPlaceId}
             courseStops={courseStops}
+            walkLegs={walkLegs}
+            // 동네를 바꿀 때만 시야를 다시 맞춘다. 카테고리·분위기·가격은
+            // 보이는 지역이 그대로라 시야를 유지하는 편이 훑어보기 좋다.
+            fitBoundsKey={neighborhood}
           />
         </div>
 
@@ -285,7 +291,7 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
         </div>
       </div>
 
-      <CourseTray stops={courseStops} onChange={updateCourse} onSave={handleSaveCourse} />
+      <CourseTray stops={courseStops} onChange={updateCourse} onSave={handleSaveCourse} walkLegs={walkLegs} />
     </div>
   );
 }

@@ -4,10 +4,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CourseStop } from "@/lib/course";
-import { buildNumberedMarkerSrc, loadKakaoSdk } from "@/lib/kakaoSdk";
+import { buildCourseLines, buildNumberedMarkerSrc, loadKakaoSdk } from "@/lib/kakaoSdk";
 
-/** 저장된 코스만 보여주는 읽기 전용 지도. 번호 마커 + 순서대로 이은 선. */
-export default function CourseMap({ stops }: { stops: CourseStop[] }) {
+/** 저장된 코스만 보여주는 읽기 전용 지도. 번호 마커 + 구간별 보행 경로. */
+export default function CourseMap({
+  stops,
+  walkLegs,
+}: {
+  stops: CourseStop[];
+  walkLegs?: { path: [number, number][] }[];
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
@@ -48,14 +54,7 @@ export default function CourseMap({ stops }: { stops: CourseStop[] }) {
         }),
     );
 
-    const line = new kakao.maps.Polyline({
-      map,
-      path: stops.map((s) => new kakao.maps.LatLng(s.lat, s.lng)),
-      strokeWeight: 4,
-      strokeColor: "#92400e",
-      strokeOpacity: 0.85,
-      strokeStyle: "solid",
-    });
+    const lines = buildCourseLines(map, stops, walkLegs);
 
     const bounds = new kakao.maps.LatLngBounds();
     stops.forEach((s) => bounds.extend(new kakao.maps.LatLng(s.lat, s.lng)));
@@ -63,9 +62,9 @@ export default function CourseMap({ stops }: { stops: CourseStop[] }) {
 
     return () => {
       markers.forEach((m: any) => m.setMap(null));
-      line.setMap(null);
+      lines.forEach((line: any) => line.setMap(null));
     };
-  }, [ready, stops]);
+  }, [ready, stops, walkLegs]);
 
   if (!process.env.NEXT_PUBLIC_KAKAO_MAP_KEY) {
     return (

@@ -74,6 +74,8 @@ export interface Leg {
   walkMinutes: number;
   isFar: boolean;
   directionsUrl: string;
+  /** true면 실제 보행로 기준, false·없으면 직선거리 추정치 */
+  isActualRoute?: boolean;
 }
 
 /**
@@ -92,12 +94,33 @@ export function legBetween(from: CourseStop, to: CourseStop): Leg {
   };
 }
 
-export function courseLegs(stops: CourseStop[]): Leg[] {
-  return stops.slice(0, -1).map((stop, i) => legBetween(stop, stops[i + 1]));
+/**
+ * 실제 보행 경로(walkLegs)를 받으면 그 거리·시간을 쓰고, 없으면 직선 추정으로 돌아간다.
+ * TMAP_APP_KEY가 없는 환경에서도 코스 기능이 그대로 동작해야 한다.
+ */
+export function courseLegs(
+  stops: CourseStop[],
+  walkLegs?: { meters: number | null; minutes: number | null }[],
+): Leg[] {
+  return stops.slice(0, -1).map((stop, i) => {
+    const estimated = legBetween(stop, stops[i + 1]);
+    const actual = walkLegs?.[i];
+    if (!actual || actual.meters == null || actual.minutes == null) return estimated;
+    return {
+      meters: actual.meters,
+      walkMinutes: actual.minutes,
+      isFar: actual.meters > FAR_LEG_METERS,
+      directionsUrl: estimated.directionsUrl,
+      isActualRoute: true,
+    };
+  });
 }
 
-export function totalWalkMinutes(stops: CourseStop[]): number {
-  return courseLegs(stops).reduce((sum, leg) => sum + leg.walkMinutes, 0);
+export function totalWalkMinutes(
+  stops: CourseStop[],
+  walkLegs?: { meters: number | null; minutes: number | null }[],
+): number {
+  return courseLegs(stops, walkLegs).reduce((sum, leg) => sum + leg.walkMinutes, 0);
 }
 
 /** 카카오맵 길찾기. 도보·대중교통·자차를 카카오가 알아서 계산해준다. */

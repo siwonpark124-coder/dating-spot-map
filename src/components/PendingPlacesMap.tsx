@@ -31,7 +31,7 @@ export default function PendingPlacesMap({ initialPlaces }: { initialPlaces: Pla
 
   return (
     <div className="relative h-full w-full">
-      <KakaoMap places={places} onPlaceClick={selectPlace} refitBoundsOnChange={false} />
+      <KakaoMap places={places} onPlaceClick={selectPlace} />
 
       <p className="pointer-events-none absolute left-4 top-4 rounded bg-white/90 px-3 py-1.5 text-xs text-stone-600 shadow">
         검수 대기 {places.length}개 — 마커를 클릭해서 마음에 안 드는 곳을 바로 제외할 수 있어요
