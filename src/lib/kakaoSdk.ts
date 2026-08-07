@@ -43,6 +43,13 @@ export function loadKakaoSdk(): Promise<any> {
   return loadPromise;
 }
 
+/**
+ * 코스 마커·경로선 색.
+ * 카테고리 마커(식당 #f97316 주황 / 카페 #92400e 갈색 / 바 #7c3aed 보라)와
+ * 겹치지 않아야 "코스에 담긴 곳"이 한눈에 구분된다.
+ */
+const COURSE_COLOR = "#e11d48";
+
 interface LatLngLike {
   lat: number;
   lng: number;
@@ -74,7 +81,7 @@ export function buildCourseLines(
       map,
       path,
       strokeWeight: 5,
-      strokeColor: "#92400e",
+      strokeColor: COURSE_COLOR,
       strokeOpacity: 0.85,
       strokeStyle: hasRoute ? "solid" : "shortdash",
       zIndex: 9,
@@ -85,9 +92,9 @@ export function buildCourseLines(
 /** 코스 순서를 나타내는 번호 마커 (①②③④ 대신 직접 그린다) */
 export function buildNumberedMarkerSrc(index: number): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46">
-    <path d="M18 0C8 0 0 8 0 18c0 12.5 18 28 18 28s18-15.5 18-28C36 8 28 0 18 0z" fill="#92400e"/>
+    <path d="M18 0C8 0 0 8 0 18c0 12.5 18 28 18 28s18-15.5 18-28C36 8 28 0 18 0z" fill="${COURSE_COLOR}"/>
     <circle cx="18" cy="17" r="11" fill="white"/>
-    <text x="18" y="22" font-size="14" font-weight="bold" fill="#92400e" text-anchor="middle" font-family="sans-serif">${index}</text>
+    <text x="18" y="22" font-size="14" font-weight="bold" fill="${COURSE_COLOR}" text-anchor="middle" font-family="sans-serif">${index}</text>
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }

@@ -10,6 +10,8 @@ export interface WalkLeg {
 }
 
 const EMPTY: WalkLeg[] = [];
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 2000;
 
 export interface WalkRouteState {
   legs: WalkLeg[];
@@ -43,19 +45,39 @@ export function useWalkRouteState(stops: CourseStop[]): WalkRouteState {
     if (!needsRoute) return;
 
     const controller = new AbortController();
-    fetch("/api/walk-route", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stops: stops.map((s) => ({ lat: s.lat, lng: s.lng })) }),
-      signal: controller.signal,
-    })
-      .then((res) => (res.ok ? res.json() : { legs: EMPTY }))
-      .then((data) => setFetched({ key, legs: Array.isArray(data.legs) ? data.legs : EMPTY }))
-      .catch((error) => {
-        if ((error as Error).name !== "AbortError") setFetched({ key, legs: EMPTY });
-      });
+    let retriesLeft = MAX_RETRIES;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
-    return () => controller.abort();
+    // 서버가 잠깐 죽었거나 네트워크가 끊긴 경우, 좌표가 그대로면 다시 부를 계기가 없어
+    // 그 코스는 계속 직선으로 남는다. 그래서 실패는 몇 번 재시도한다.
+    const run = () => {
+      fetch("/api/walk-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stops: stops.map((s) => ({ lat: s.lat, lng: s.lng })) }),
+        signal: controller.signal,
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((data) => setFetched({ key, legs: Array.isArray(data.legs) ? data.legs : EMPTY }))
+        .catch((error) => {
+          if ((error as Error).name === "AbortError") return;
+          if (retriesLeft > 0) {
+            retriesLeft -= 1;
+            retryTimer = setTimeout(run, RETRY_DELAY_MS);
+            return;
+          }
+          setFetched({ key, legs: EMPTY });
+        });
+    };
+    run();
+
+    return () => {
+      controller.abort();
+      clearTimeout(retryTimer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, needsRoute]);
 

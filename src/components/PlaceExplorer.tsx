@@ -30,6 +30,7 @@ import KakaoMap from "./KakaoMap";
 import PlaceCard from "./PlaceCard";
 import Filters from "./Filters";
 import CourseTray from "./CourseTray";
+import LogoMark from "./LogoMark";
 
 // 목록에 한 번에 그릴 카드 수. 400곳을 전부 그리면 카드 하나당 DOM 16개라
 // 필터를 누를 때마다 7천 노드를 다시 그리게 되고, 그게 체감 렉의 대부분이었다.
@@ -164,9 +165,12 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
   return (
     <div className="flex h-screen flex-col">
       <header className="flex flex-wrap items-center gap-4 border-b border-stone-200 bg-[#fbf7ef] px-6 py-5">
-        <div className="flex shrink-0 flex-col">
-          <h1 className="text-xl font-bold text-stone-900">오로지</h1>
-          <p className="text-xs text-stone-500">오늘 로맨틱한 지점 · 오로지 당신의 성공적인 만남을 위해</p>
+        <div className="flex shrink-0 items-center gap-2.5">
+          <LogoMark className="h-9 w-9 shrink-0" />
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold text-stone-900">오로지</h1>
+            <p className="text-xs text-stone-500">오늘 로맨틱한 지점 · 오로지 당신의 성공적인 만남을 위해</p>
+          </div>
         </div>
         <Filters
           neighborhood={neighborhood}
