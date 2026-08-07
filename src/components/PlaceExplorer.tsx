@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PlaceWithReviewCount } from "@/types/place";
@@ -11,9 +11,24 @@ import {
   toSearchParams,
   hasActiveFilters,
 } from "@/lib/placeFilters";
+import {
+  CourseStop,
+  MAX_STOPS,
+  addStop,
+  getDraftServerSnapshot,
+  getDraftSnapshot,
+  hasStop,
+  rememberSavedCourse,
+  saveDraft,
+  stopFromPlace,
+  subscribeDraft,
+} from "@/lib/course";
+import { CATEGORY_LABELS } from "@/lib/constants";
+import { saveCourse } from "@/app/course/actions";
 import KakaoMap from "./KakaoMap";
 import PlaceCard from "./PlaceCard";
 import Filters from "./Filters";
+import CourseTray from "./CourseTray";
 
 // 목록에 한 번에 그릴 카드 수. 400곳을 전부 그리면 카드 하나당 DOM 16개라
 // 필터를 누를 때마다 7천 노드를 다시 그리게 되고, 그게 체감 렉의 대부분이었다.
@@ -109,6 +124,32 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
     return () => observer.disconnect();
   }, [effectiveCount, filteredPlaces.length]);
 
+  // 저장 전 코스는 localStorage에만 있다. React 바깥 저장소라 외부 스토어로 읽는다.
+  const courseStops = useSyncExternalStore(
+    subscribeDraft,
+    getDraftSnapshot,
+    getDraftServerSnapshot,
+  );
+
+  const updateCourse = useCallback((stops: CourseStop[]) => saveDraft(stops), []);
+
+  const handleSaveCourse = useCallback(
+    async (title: string) => {
+      const result = await saveCourse(
+        courseStops.map((s) => ({ placeId: s.placeId, label: s.label, lat: s.lat, lng: s.lng })),
+        title,
+      );
+      if ("error" in result) return null;
+      rememberSavedCourse({
+        id: result.id,
+        title: title || "데이트 코스",
+        savedAt: new Date().toISOString(),
+      });
+      return result.id;
+    },
+    [courseStops],
+  );
+
   // 선택된 카드를 목록 맨 위로 올린다.
   // 목록이 길어 수만 픽셀을 이동할 수 있으니 부드러운 스크롤 대신 바로 이동한다.
   useEffect(() => {
@@ -165,6 +206,7 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
             places={filteredPlaces}
             onPlaceClick={(place) => setSelectedPlaceId(place.id)}
             focusedPlaceId={selectedPlaceId}
+            courseStops={courseStops}
           />
         </div>
 
@@ -203,7 +245,26 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
               </p>
             )}
             {visiblePlaces.map((place) => (
-              <PlaceCard key={place.id} place={place} selected={place.id === selectedPlaceId} />
+              <PlaceCard
+                key={place.id}
+                place={place}
+                selected={place.id === selectedPlaceId}
+                inCourse={hasStop(courseStops, stopFromPlace(place))}
+                courseFull={courseStops.length >= MAX_STOPS}
+                onAddToCourse={(p) =>
+                  updateCourse(
+                    addStop(
+                      courseStops,
+                      stopFromPlace(
+                        p,
+                        p.cuisine
+                          ? `${p.cuisine} ${CATEGORY_LABELS[p.category]}`
+                          : CATEGORY_LABELS[p.category],
+                      ),
+                    ),
+                  )
+                }
+              />
             ))}
 
             {/* 스크롤이 닿으면 자동으로 더 불러오지만, 버튼으로도 누를 수 있게 둔다.
@@ -223,6 +284,8 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
           </div>
         </div>
       </div>
+
+      <CourseTray stops={courseStops} onChange={updateCourse} onSave={handleSaveCourse} />
     </div>
   );
 }

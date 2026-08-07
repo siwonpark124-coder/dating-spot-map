@@ -3,7 +3,16 @@ import Link from "next/link";
 import { PlaceWithReviewCount } from "@/types/place";
 import { CATEGORY_LABELS, PRICE_TIER_LABELS } from "@/lib/constants";
 
-function PlaceCard({ place, selected = false }: { place: PlaceWithReviewCount; selected?: boolean }) {
+interface PlaceCardProps {
+  place: PlaceWithReviewCount;
+  selected?: boolean;
+  /** 코스에 이미 담겼는지. 코스 기능이 없는 화면에서는 넘기지 않는다. */
+  inCourse?: boolean;
+  courseFull?: boolean;
+  onAddToCourse?: (place: PlaceWithReviewCount) => void;
+}
+
+function PlaceCard({ place, selected = false, inCourse, courseFull, onAddToCourse }: PlaceCardProps) {
   return (
     <article
       data-place-id={place.id}
@@ -62,6 +71,22 @@ function PlaceCard({ place, selected = false }: { place: PlaceWithReviewCount; s
             <a href={place.reservation_url} target="_blank" rel="noreferrer" className="text-stone-700 underline">
               예약
             </a>
+          )}
+
+          {onAddToCourse && (
+            <button
+              type="button"
+              onClick={() => onAddToCourse(place)}
+              disabled={inCourse || courseFull}
+              title={courseFull && !inCourse ? "코스가 가득 찼어요" : undefined}
+              className={`ml-auto rounded-full border px-2.5 py-1 transition-colors ${
+                inCourse
+                  ? "border-amber-700 bg-amber-50 text-amber-800"
+                  : "border-stone-300 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+              }`}
+            >
+              {inCourse ? "코스에 담김" : "+ 코스"}
+            </button>
           )}
         </div>
       </div>

@@ -5,12 +5,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Place, PlaceCategory } from "@/types/place";
 import { CATEGORY_LABELS } from "@/lib/constants";
-
-declare global {
-  interface Window {
-    kakao: any;
-  }
-}
+import { CourseStop } from "@/lib/course";
+import { buildNumberedMarkerSrc } from "@/lib/kakaoSdk";
 
 const DEFAULT_CENTER = { lat: 37.5563, lng: 126.9236 }; // 홍대입구역
 
@@ -69,6 +65,8 @@ interface KakaoMapProps {
   onPlaceClick?: (place: Place) => void;
   /** 이 장소로 지도를 확대·이동시킴. 마커 클릭 외에 목록 쪽에서 선택했을 때도 쓸 수 있다. */
   focusedPlaceId?: string | null;
+  /** 코스에 담긴 정거장. 번호 마커와 순서대로 이은 선으로 덧그린다. */
+  courseStops?: CourseStop[];
   /** false면 장소 목록이 바뀌어도 처음 한 번만 범위를 맞추고, 이후엔 사용자가 보던 위치를 유지함 */
   refitBoundsOnChange?: boolean;
 }
@@ -78,6 +76,7 @@ export default function KakaoMap({
   center,
   onPlaceClick,
   focusedPlaceId,
+  courseStops,
   refitBoundsOnChange = true,
 }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -209,6 +208,47 @@ export default function KakaoMap({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places, mapReady]);
+
+  // 코스 오버레이: 번호 마커와 이어주는 선. 기존 카테고리 마커 위에 덧그린다.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+    const stops = courseStops ?? [];
+    if (stops.length === 0) return;
+
+    const markers = stops.map(
+      (stop, i) =>
+        new window.kakao.maps.Marker({
+          position: new window.kakao.maps.LatLng(stop.lat, stop.lng),
+          map,
+          image: new window.kakao.maps.MarkerImage(
+            buildNumberedMarkerSrc(i + 1),
+            new window.kakao.maps.Size(36, 46),
+            { offset: new window.kakao.maps.Point(18, 46) },
+          ),
+          zIndex: 10,
+          title: stop.label,
+        }),
+    );
+
+    const line =
+      stops.length > 1
+        ? new window.kakao.maps.Polyline({
+            map,
+            path: stops.map((s) => new window.kakao.maps.LatLng(s.lat, s.lng)),
+            strokeWeight: 4,
+            strokeColor: "#92400e",
+            strokeOpacity: 0.85,
+            strokeStyle: "solid",
+            zIndex: 9,
+          })
+        : null;
+
+    return () => {
+      markers.forEach((m: any) => m.setMap(null));
+      line?.setMap(null);
+    };
+  }, [courseStops, mapReady]);
 
   // 선택된 장소로 확대·이동. 이미 그보다 확대해서 보고 있다면 배율은 건드리지 않는다.
   useEffect(() => {
