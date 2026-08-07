@@ -26,6 +26,33 @@ const NEIGHBORHOOD_SEARCH_CENTERS = {
 };
 
 const RADIUS_METERS = 1200;
+
+// 종로 중심과 을지로 중심이 456m밖에 안 떨어져 있어 반경 1,200m 두 개가 거의 포개진다.
+// 그래서 "어느 검색에서 나왔는가"로 동네를 정하면 먼저 돌린 쪽이 다 가져가고,
+// 을지로 한복판 가게가 종로로 남는다 (실제로 38곳이 그랬다).
+// 검색은 장소를 찾는 수단일 뿐이고, 동네 라벨은 좌표에서 결정한다.
+function meters(a, b) {
+  const R = 6371000;
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(rad(a.lat)) * Math.cos(rad(b.lat));
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function neighborhoodFor(lat, lng) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const [name, center] of Object.entries(NEIGHBORHOOD_SEARCH_CENTERS)) {
+    const d = meters({ lat, lng }, center);
+    if (d < bestDist) {
+      bestDist = d;
+      best = name;
+    }
+  }
+  return best;
+}
 const MAX_PAGES = 3; // 카카오 로컬 API는 검색당 최대 45건(15건 x 3페이지)까지만 제공
 const PAGE_SIZE = 15;
 const REQUEST_DELAY_MS = 150;
@@ -96,7 +123,8 @@ async function main() {
       const rows = documents.map((doc) => ({
         name: doc.place_name,
         category: searchDef.ourCategory,
-        neighborhood,
+        // 이 검색이 어느 동네 것이었는지가 아니라, 실제 좌표로 동네를 정한다
+        neighborhood: neighborhoodFor(Number(doc.y), Number(doc.x)),
         address: doc.road_address_name || doc.address_name,
         lat: Number(doc.y),
         lng: Number(doc.x),

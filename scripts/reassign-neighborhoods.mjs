@@ -43,10 +43,10 @@ function nearest(place) {
   return { name: best, distance: Math.round(bestDist) };
 }
 
+// 제외된 장소도 같이 고친다. 나중에 되살렸을 때 라벨이 틀어져 있으면 안 되니까.
 const { data, error } = await supabase
   .from("places")
-  .select("id,name,neighborhood,lat,lng,status")
-  .eq("status", "published");
+  .select("id,name,neighborhood,lat,lng,status");
 if (error) {
   console.error(error.message);
   process.exit(1);
