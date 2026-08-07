@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Place, PlaceCategory } from "@/types/place";
+import { CATEGORY_LABELS } from "@/lib/constants";
 
 declare global {
   interface Window {
@@ -18,6 +19,36 @@ const CATEGORY_MARKER_STYLE: Record<PlaceCategory, { emoji: string; color: strin
   cafe: { emoji: "☕", color: "#92400e" },
   bar: { emoji: "🍸", color: "#7c3aed" },
 };
+
+/** 호버 말풍선에 넣을 한 줄 코멘트 길이. 이보다 길면 잘라낸다. */
+const HOVER_NOTE_MAX = 45;
+
+// InfoWindow는 HTML 문자열로만 받으므로 직접 이스케이프해야 한다.
+// 실제로 따옴표가 들어간 이름·추천 이유가 51곳 있다.
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildInfoWindowContent(place: Place) {
+  const subtitle = place.cuisine
+    ? `${place.cuisine} ${CATEGORY_LABELS[place.category]}`
+    : CATEGORY_LABELS[place.category];
+
+  const note = place.curation_note?.trim() ?? "";
+  const shortNote =
+    note.length > HOVER_NOTE_MAX ? `${note.slice(0, HOVER_NOTE_MAX).trimEnd()}…` : note;
+
+  return `<div style="padding:8px 10px;max-width:230px;line-height:1.45;">
+    <div style="font-size:13px;font-weight:700;color:#1c1917;">${escapeHtml(place.name)}</div>
+    <div style="font-size:11px;color:#78716c;margin-top:1px;">${escapeHtml(subtitle)}</div>
+    ${shortNote ? `<div style="font-size:11px;color:#44403c;margin-top:4px;">${escapeHtml(shortNote)}</div>` : ""}
+  </div>`;
+}
 
 function buildMarkerImageSrc(category: PlaceCategory) {
   const { emoji, color } = CATEGORY_MARKER_STYLE[category];
@@ -160,9 +191,7 @@ export default function KakaoMap({
       });
 
       window.kakao.maps.event.addListener(marker, "mouseover", () => {
-        infoWindow.setContent(
-          `<div style="padding:6px 10px;font-size:13px;white-space:nowrap;">${place.name}</div>`
-        );
+        infoWindow.setContent(buildInfoWindowContent(place));
         infoWindow.open(map, marker);
       });
       window.kakao.maps.event.addListener(marker, "mouseout", () => infoWindow.close());
