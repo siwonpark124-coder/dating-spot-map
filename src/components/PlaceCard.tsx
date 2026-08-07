@@ -35,9 +35,10 @@ function PlaceCard({
     // 지도에서 고른 카드는 테두리만으로는 눈에 안 들어와서, 여백·그림자·배경까지 같이 키운다.
     <article
       data-place-id={place.id}
+      // 모바일에서는 이 카드가 지도 위에 뜬다. 반투명하면 지도가 비쳐서 글씨가 안 읽힌다.
       className={`flex scroll-mt-3 gap-3 rounded-lg border transition-all ${
         selected
-          ? "border-amber-700 bg-amber-50/70 p-4 shadow-md ring-2 ring-amber-700/40"
+          ? "border-amber-700 bg-amber-50 p-4 shadow-md ring-2 ring-amber-700/40"
           : "border-stone-200 bg-white p-3"
       }`}
     >

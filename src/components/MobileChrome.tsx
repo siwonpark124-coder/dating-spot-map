@@ -182,7 +182,7 @@ export default function MobileChrome(props: MobileChromeProps) {
 
         {selectedPlace && (
           <div className="pointer-events-auto w-full">
-            <div className="relative">
+            <div className="relative rounded-lg shadow-xl">
               <button
                 type="button"
                 onClick={() => onSelectPlace(null)}

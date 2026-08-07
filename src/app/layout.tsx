@@ -19,11 +19,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="h-full overflow-hidden">{children}</body>
+    // 지도 화면은 스스로 100dvh 안에서 스크롤을 처리한다. 여기서 overflow를 잠그면
+    // 상세·후기·피드백처럼 길어지는 페이지가 통째로 스크롤되지 않는다.
+    <html lang="ko" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body>{children}</body>
     </html>
   );
 }

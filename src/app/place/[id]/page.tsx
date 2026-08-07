@@ -6,7 +6,6 @@ import { Review } from "@/types/review";
 import { CATEGORY_LABELS, PRICE_TIER_LABELS } from "@/lib/constants";
 import ReviewSection from "@/components/ReviewSection";
 import ReportPlaceForm from "@/components/ReportPlaceForm";
-import KakaoMap from "@/components/KakaoMap";
 
 export const dynamic = "force-dynamic"; // 새 후기/발행 상태가 재배포 없이 바로 반영되도록
 
@@ -30,78 +29,53 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
 
   const typedPlace = place as Place;
 
+  const subtitle = typedPlace.cuisine
+    ? `${typedPlace.cuisine} ${CATEGORY_LABELS[typedPlace.category]}`
+    : CATEGORY_LABELS[typedPlace.category];
+
   return (
+    // 지도 화면의 카드가 분위기·추천 이유·길찾기·예약을 이미 다 보여준다.
+    // 여기는 그걸 되풀이하지 않고 후기를 읽고 쓰는 자리로 둔다.
     <main className="min-h-screen bg-[#f6f1e7]">
-      <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+      <div className="mx-auto flex max-w-2xl flex-col gap-5 p-5">
         <Link href="/" className="text-sm text-amber-700 underline">
           ← 지도로 돌아가기
         </Link>
 
-        <div className="flex flex-col gap-2 rounded-xl border border-stone-200 bg-white p-6">
+        {/* 어느 가게의 후기인지 알아볼 만큼만. 링크로 바로 들어온 사람도 있으니
+            이름·분류·주소까지는 남겨둔다. */}
+        <header className="flex flex-col gap-1">
           <h1 className="text-xl font-bold text-stone-900">{typedPlace.name}</h1>
           <p className="text-sm text-stone-500">
-            {typedPlace.cuisine ? `${typedPlace.cuisine} ${CATEGORY_LABELS[typedPlace.category]}` : CATEGORY_LABELS[typedPlace.category]}
-            {" · "}
-            {typedPlace.neighborhood} · {typedPlace.address}
+            {subtitle}
             {typedPlace.price_tier && ` · ${PRICE_TIER_LABELS[typedPlace.price_tier]}`}
+            {" · "}
+            {typedPlace.neighborhood}
           </p>
+          <p className="text-xs text-stone-400">{typedPlace.address}</p>
 
-          {typedPlace.mood_tags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {typedPlace.mood_tags.map((tag) => (
-                <span key={tag} className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-700">
-                  {tag}
-                </span>
-              ))}
-            </div>
+          {typedPlace.kakao_map_url && (
+            <a
+              href={typedPlace.kakao_map_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 self-start text-sm text-amber-700 underline"
+            >
+              사진 · 메뉴 보기
+            </a>
           )}
-
-          {typedPlace.curation_note && <p className="text-sm text-stone-700">{typedPlace.curation_note}</p>}
-          {typedPlace.business_hours && <p className="text-xs text-stone-500">{typedPlace.business_hours}</p>}
-
-          {/* 사진·메뉴는 수집 경로(카카오 로컬 API)가 주지 않아 DB에 없다.
-              직접 보여주는 대신 실제로 있는 곳으로 보낸다. */}
-          <div className="mt-2 flex flex-wrap gap-2 text-sm">
-            {typedPlace.kakao_map_url && (
-              <a
-                href={typedPlace.kakao_map_url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg bg-amber-800 px-3 py-2 font-medium text-white hover:bg-amber-900"
-              >
-                사진 · 메뉴 보기
-              </a>
-            )}
-            {typedPlace.naver_map_url && (
-              <a
-                href={typedPlace.naver_map_url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-700 hover:bg-stone-100"
-              >
-                길찾기
-              </a>
-            )}
-            {typedPlace.reservation_url && (
-              <a
-                href={typedPlace.reservation_url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-700 hover:bg-stone-100"
-              >
-                예약
-              </a>
-            )}
-          </div>
-
-          <div className="h-48 overflow-hidden rounded-lg">
-            <KakaoMap places={[typedPlace]} />
-          </div>
-
-          <ReportPlaceForm placeId={typedPlace.id} />
-        </div>
+        </header>
 
         <ReviewSection placeId={typedPlace.id} reviews={(reviews ?? []) as Review[]} />
+
+        <details className="rounded-xl border border-stone-200 bg-white p-4">
+          <summary className="cursor-pointer text-sm font-medium text-stone-700">
+            정보가 잘못됐거나 문 닫았나요?
+          </summary>
+          <div className="pt-3">
+            <ReportPlaceForm placeId={typedPlace.id} />
+          </div>
+        </details>
       </div>
     </main>
   );
