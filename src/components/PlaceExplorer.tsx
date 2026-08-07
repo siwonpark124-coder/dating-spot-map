@@ -29,10 +29,11 @@ import { CATEGORY_LABELS } from "@/lib/constants";
 import { useWalkRouteState } from "@/lib/useWalkRoute";
 import { saveCourse } from "@/app/course/actions";
 import KakaoMap from "./KakaoMap";
-import PlaceCard from "./PlaceCard";
+import PlaceList from "./PlaceList";
 import Filters from "./Filters";
 import CourseTray from "./CourseTray";
 import CuratedCoursePicker from "./CuratedCoursePicker";
+import MobileChrome from "./MobileChrome";
 import LogoMark from "./LogoMark";
 
 // 목록에 한 번에 그릴 카드 수. 400곳을 전부 그리면 카드 하나당 DOM 16개라
@@ -275,28 +276,76 @@ export default function PlaceExplorer({
       ?.scrollIntoView({ block: "start" });
   }, [selectedPlaceId, selectedIndex, effectiveCount]);
 
+  // 지도·목록·모바일 카드가 같은 선택 상태를 본다
+  const selectedPlace = useMemo(
+    () => filteredPlaces.find((p) => p.id === selectedPlaceId) ?? null,
+    [filteredPlaces, selectedPlaceId],
+  );
+
+  const addPlaceToCourse = useCallback(
+    (place: PlaceWithReviewCount) =>
+      updateCourse(
+        addStop(
+          courseStops,
+          stopFromPlace(
+            place,
+            place.cuisine
+              ? `${place.cuisine} ${CATEGORY_LABELS[place.category]}`
+              : CATEGORY_LABELS[place.category],
+          ),
+        ),
+      ),
+    [courseStops, updateCourse],
+  );
+
+  const isInCourse = useCallback(
+    (place: PlaceWithReviewCount) => hasStop(courseStops, stopFromPlace(place)),
+    [courseStops],
+  );
+
+  // 필터창 아이콘에 붙는 배지. 정렬은 필터가 아니므로 빼고 센다.
+  const activeFilterCount = toSearchParams({ ...filters, sort: "latest" }).size;
+
+  const showMore = () =>
+    setVisibleCount(Math.min(effectiveCount + PAGE_SIZE, filteredPlaces.length));
+  const changeSearch = (value: string) => {
+    setSearchInput(value);
+    updateFilters({ query: value });
+  };
+
+  const trayProps = {
+    stops: courseStops,
+    onChange: updateCourse,
+    onSave: handleSaveCourse,
+    mode: (curating ? "curate" : "save") as "curate" | "save",
+    initialTitle: loadedTitle,
+    walkLegs,
+    walkLoading,
+    walkNoPath,
+    walkNoDistance,
+    onRetryWalk: retryWalk,
+  };
+
   return (
-    <div className="flex h-screen flex-col">
-      {/* 모바일은 '로고 줄 + 필터 한 줄'로 눌러둔다. 데스크탑은 기존처럼 한 줄에 펼친다. */}
-      <header className="flex shrink-0 flex-col gap-2 border-b border-stone-200 bg-[#fbf7ef] px-4 py-3 md:flex-row md:flex-wrap md:items-center md:gap-4 md:px-6 md:py-5">
+    // 100vh는 iOS 주소창 높이가 빠져 하단이 잘린다. dvh는 실제 보이는 높이를 쓴다.
+    <div className="flex h-[100dvh] flex-col">
+      <header className="hidden shrink-0 flex-wrap items-center gap-4 border-b border-stone-200 bg-[#fbf7ef] px-6 py-5 md:flex">
         <div className="flex shrink-0 items-center gap-2.5">
-          <LogoMark className="h-8 w-8 shrink-0 md:h-9 md:w-9" />
+          <LogoMark className="h-9 w-9 shrink-0" />
           <div className="flex min-w-0 flex-col">
-            <h1 className="text-lg font-bold text-stone-900 md:text-xl">
+            <h1 className="text-xl font-bold text-stone-900">
               {curating ? "추천 코스 짜기" : "오로지"}
             </h1>
-            {/* 설명 문구는 모바일에서 자리만 차지한다 */}
-            <p className="hidden text-xs text-stone-500 md:block">
+            <p className="text-xs text-stone-500">
               {curating
                 ? "평소처럼 코스를 담고, 아래에서 이름을 붙여 등록하세요"
                 : "오늘 로맨틱한 지점 · 오로지 당신의 성공적인 만남을 위해"}
             </p>
           </div>
 
-          {/* 필터가 아니라 화면을 여는 동작이라 필터 묶음 바깥에 둔다.
-              모바일에선 로고 줄 오른쪽 끝으로 밀어 한 줄을 아낀다. */}
+          {/* 필터가 아니라 화면을 여는 동작이라 필터 묶음 바깥에 둔다. */}
           {!curating && (
-            <div className="ml-auto md:ml-3">
+            <div className="ml-3">
               <CuratedCoursePicker courses={curatedCourses} onPick={pickCuratedCourse} />
             </div>
           )}
@@ -317,8 +366,8 @@ export default function PlaceExplorer({
           cuisines={cuisines}
           onCuisinesChange={(v) => updateFilters({ cuisines: v })}
         />
-        {/* 보조 링크는 모바일에서 목록 맨 아래로 내린다 (헤더 높이를 아끼려고) */}
-        <div className="hidden shrink-0 items-center gap-3 text-sm text-stone-500 md:flex">
+
+        <div className="flex shrink-0 items-center gap-3 text-sm text-stone-500">
           {hasActiveFilters(filters) && (
             <button
               type="button"
@@ -348,10 +397,14 @@ export default function PlaceExplorer({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        {/* 모바일: 지도는 고정 높이, 남는 공간은 목록이 가져가 내부에서 스크롤한다.
-            지도에 flex-1을 주면 목록이 늘어나면서 지도를 화면 밖으로 밀어낸다. */}
-        <div className="h-[38vh] shrink-0 md:h-auto md:min-h-0 md:flex-1">
+      <div className="flex min-h-0 flex-1">
+        {/*
+          지도는 한 벌만 만든다. 모바일에서는 이 칸이 화면 전체가 되고 그 위에
+          MobileChrome이 떠 있고, 데스크탑에서는 오른쪽에 목록이 붙는다.
+          모바일용·데스크탑용으로 두 번 그리면 지도 SDK 인스턴스와
+          마커·보행경로 호출이 통째로 두 배가 된다.
+        */}
+        <div className="relative min-h-0 flex-1">
           <KakaoMap
             places={filteredPlaces}
             onPlaceClick={(place) => setSelectedPlaceId(place.id)}
@@ -364,148 +417,86 @@ export default function PlaceExplorer({
             // 추천 코스를 불러왔을 때는 다른 동네를 보고 있어도 그 코스로 시야를 옮긴다.
             fitCourseKey={courseFitKey > 0 ? String(courseFitKey) : undefined}
           />
+
+          {/* 되돌리기는 트레이 밖으로 뺐다. 모바일에서는 트레이가 창 안에 있어서
+              안에 두면 창을 열기 전까지 코스가 덮인 걸 알 수 없다. */}
+          {undoStops && (
+            <div className="absolute inset-x-3 top-16 z-30 flex items-center justify-between gap-2 rounded-lg bg-stone-900/90 px-3 py-2 text-xs text-white shadow-lg md:inset-x-auto md:right-4 md:top-4 md:max-w-sm">
+              추천 코스를 불러왔어요. 담아두셨던 코스는 사라졌어요.
+              <button
+                type="button"
+                onClick={undoCuratedLoad}
+                className="shrink-0 font-semibold underline"
+              >
+                되돌리기
+              </button>
+            </div>
+          )}
+
+          <MobileChrome
+            neighborhood={neighborhood}
+            onNeighborhoodChange={(v) => updateFilters({ neighborhood: v })}
+            category={category}
+            onCategoryChange={(v) => updateFilters({ category: v })}
+            moodTags={moodTags}
+            onMoodTagsChange={(v) => updateFilters({ moodTags: v })}
+            priceTiers={priceTiers}
+            onPriceTiersChange={(v) => updateFilters({ priceTiers: v })}
+            firstMeetingOnly={firstMeetingOnly}
+            onFirstMeetingOnlyChange={(v) => updateFilters({ firstMeetingOnly: v })}
+            cuisineOptions={cuisineOptions}
+            cuisines={cuisines}
+            onCuisinesChange={(v) => updateFilters({ cuisines: v })}
+            activeFilterCount={activeFilterCount}
+            onResetFilters={() => updateFilters(DEFAULT_FILTERS)}
+            visiblePlaces={visiblePlaces}
+            totalCount={filteredPlaces.length}
+            remainingCount={Math.max(0, filteredPlaces.length - effectiveCount)}
+            onShowMore={showMore}
+            sentinelRef={sentinelRef}
+            searchInput={searchInput}
+            onSearchChange={changeSearch}
+            sort={sort}
+            onSortChange={(v) => updateFilters({ sort: v })}
+            selectedPlace={selectedPlace}
+            onSelectPlace={(place) => setSelectedPlaceId(place?.id ?? null)}
+            inCourse={isInCourse}
+            onAddToCourse={addPlaceToCourse}
+            curatedCourses={curatedCourses}
+            onPickCuratedCourse={pickCuratedCourse}
+            courseStops={courseStops}
+            trayProps={trayProps}
+            walkLoading={walkLoading}
+          />
         </div>
 
         <div
           ref={listRef}
-          className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto border-t border-stone-200 bg-[#fbf7ef] md:w-[380px] md:flex-none md:border-t-0 md:border-l"
+          className="hidden w-[380px] shrink-0 flex-col overflow-y-auto border-l border-stone-200 bg-[#fbf7ef] md:flex"
         >
-          <div className="relative shrink-0 border-b border-stone-200 p-3 pb-0">
-            <input
-              type="search"
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                updateFilters({ query: e.target.value });
-              }}
-              maxLength={40}
-              placeholder="가게 이름 검색"
-              className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="flex shrink-0 gap-1.5 border-b border-stone-200 p-3">
-            <button
-              type="button"
-              onClick={() => updateFilters({ sort: "latest" })}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                sort === "latest" ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-700 hover:bg-stone-200"
-              }`}
-            >
-              최신순
-            </button>
-            <button
-              type="button"
-              onClick={() => updateFilters({ sort: "popular" })}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                sort === "popular" ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-700 hover:bg-stone-200"
-              }`}
-            >
-              후기 많은순
-            </button>
-
-            {/* 헤더에서 내려온 초기화 버튼 (모바일 전용) */}
-            {hasActiveFilters(filters) && (
-              <button
-                type="button"
-                onClick={() => updateFilters(DEFAULT_FILTERS)}
-                className="ml-auto self-center text-xs text-stone-500 underline md:hidden"
-              >
-                필터 초기화
-              </button>
-            )}
-            <span
-              className={`self-center text-xs text-stone-500 ${
-                hasActiveFilters(filters) ? "ml-3 md:ml-auto" : "ml-auto"
-              }`}
-            >
-              {filteredPlaces.length}곳
-            </span>
-          </div>
-
-          {/* 코스 트레이가 화면 아래를 덮으므로 마지막 카드가 가리지 않게 여백을 준다 */}
-          <div
-            className={`flex flex-col gap-3 p-3 ${
-              courseStops.length > 0 ? "pb-52 md:pb-3" : ""
-            }`}
-          >
-            {filteredPlaces.length === 0 && (
-              <p className="text-sm text-stone-500">
-                조건에 맞는 장소가 없어요.
-                {firstMeetingOnly && " '첫 만남'을 꺼보면 더 많은 곳이 나와요."}
-              </p>
-            )}
-            {visiblePlaces.map((place) => (
-              <PlaceCard
-                key={place.id}
-                place={place}
-                selected={place.id === selectedPlaceId}
-                inCourse={hasStop(courseStops, stopFromPlace(place))}
-                courseFull={courseStops.length >= MAX_STOPS}
-                onAddToCourse={(p) =>
-                  updateCourse(
-                    addStop(
-                      courseStops,
-                      stopFromPlace(
-                        p,
-                        p.cuisine
-                          ? `${p.cuisine} ${CATEGORY_LABELS[p.category]}`
-                          : CATEGORY_LABELS[p.category],
-                      ),
-                    ),
-                  )
-                }
-              />
-            ))}
-
-            {/* 스크롤이 닿으면 자동으로 더 불러오지만, 버튼으로도 누를 수 있게 둔다.
-                IntersectionObserver가 동작하지 않는 환경에서 목록이 막히지 않도록. */}
-            {effectiveCount < filteredPlaces.length && (
-              <button
-                ref={sentinelRef}
-                type="button"
-                onClick={() =>
-                  setVisibleCount(Math.min(effectiveCount + PAGE_SIZE, filteredPlaces.length))
-                }
-                className="rounded-lg border border-stone-200 py-3 text-center text-xs text-stone-500 hover:bg-stone-100"
-              >
-                {filteredPlaces.length - effectiveCount}곳 더 보기
-              </button>
-            )}
-
-            {/* 헤더에 두면 모바일에서 한 줄을 통째로 먹어서 목록 끝으로 내렸다 */}
-            {!curating && (
-              <div className="flex flex-wrap gap-x-4 gap-y-2 pt-2 text-xs text-stone-500 md:hidden">
-                <Link href="/feedback" className="underline">
-                  피드백 남기기
-                </Link>
-                <Link href="/course-suggestions" className="underline">
-                  코스 추천하기
-                </Link>
-                <Link href="/business" className="underline">
-                  비즈니스 협업
-                </Link>
-              </div>
-            )}
-          </div>
+          <PlaceList
+            visiblePlaces={visiblePlaces}
+            totalCount={filteredPlaces.length}
+            remainingCount={Math.max(0, filteredPlaces.length - effectiveCount)}
+            onShowMore={showMore}
+            sentinelRef={sentinelRef}
+            searchInput={searchInput}
+            onSearchChange={changeSearch}
+            sort={sort}
+            onSortChange={(v) => updateFilters({ sort: v })}
+            hasFilters={hasActiveFilters(filters)}
+            onResetFilters={() => updateFilters(DEFAULT_FILTERS)}
+            firstMeetingOnly={firstMeetingOnly}
+            selectedPlaceId={selectedPlaceId}
+            inCourse={isInCourse}
+            courseFull={courseStops.length >= MAX_STOPS}
+            onAddToCourse={addPlaceToCourse}
+            bottomPadding={courseStops.length > 0 ? "pb-52" : ""}
+          />
         </div>
       </div>
 
-      {/* 추천 코스를 새로 불러올 때마다 입력 중이던 이름·저장 결과를 초기화한다. */}
-      <CourseTray
-        key={`tray-${courseFitKey}`}
-        stops={courseStops}
-        onChange={updateCourse}
-        onSave={handleSaveCourse}
-        mode={curating ? "curate" : "save"}
-        initialTitle={loadedTitle}
-        onUndo={undoStops ? undoCuratedLoad : undefined}
-        walkLegs={walkLegs}
-        walkLoading={walkLoading}
-        walkNoPath={walkNoPath}
-        walkNoDistance={walkNoDistance}
-        onRetryWalk={retryWalk}
-      />
+      <CourseTray {...trayProps} />
     </div>
   );
 }

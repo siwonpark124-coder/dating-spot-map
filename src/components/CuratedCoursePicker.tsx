@@ -9,6 +9,29 @@ interface CuratedCoursePickerProps {
   onPick: (course: CuratedCourse) => void;
 }
 
+/** 코스 목록 자체. 데스크탑 팝오버와 모바일 창이 같은 걸 쓴다. */
+export function CuratedCourseList({ courses, onPick }: CuratedCoursePickerProps) {
+  return (
+    <>
+      {courses.map((course) => (
+        <button
+          key={course.id}
+          type="button"
+          role="menuitem"
+          onClick={() => onPick(course)}
+          className="flex flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-amber-50"
+        >
+          <span className="text-sm font-medium text-stone-900">{course.title}</span>
+          {course.subtitle && <span className="text-xs text-stone-500">{course.subtitle}</span>}
+          <span className="text-xs text-stone-400">
+            {course.stops.length}곳 · 걸어서 {totalWalkMinutes(course.stops)}분
+          </span>
+        </button>
+      ))}
+    </>
+  );
+}
+
 /**
  * 운영자가 미리 짜둔 코스를 고르는 버튼.
  * 옆의 '첫 만남'은 목록을 좁히는 필터지만 이건 화면을 여는 동작이라,
@@ -67,26 +90,13 @@ export default function CuratedCoursePicker({ courses, onPick }: CuratedCoursePi
           <p className="px-2.5 py-1.5 text-xs text-stone-500">
             고르면 지도에 코스가 그려져요. 담은 뒤 바꿔도 돼요.
           </p>
-          {courses.map((course) => (
-            <button
-              key={course.id}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                onPick(course);
-                setOpen(false);
-              }}
-              className="flex flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-amber-50"
-            >
-              <span className="text-sm font-medium text-stone-900">{course.title}</span>
-              {course.subtitle && (
-                <span className="text-xs text-stone-500">{course.subtitle}</span>
-              )}
-              <span className="text-xs text-stone-400">
-                {course.stops.length}곳 · 걸어서 {totalWalkMinutes(course.stops)}분
-              </span>
-            </button>
-          ))}
+          <CuratedCourseList
+            courses={courses}
+            onPick={(course) => {
+              onPick(course);
+              setOpen(false);
+            }}
+          />
         </div>
       )}
     </div>

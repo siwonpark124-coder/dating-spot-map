@@ -10,9 +10,27 @@ interface PlaceCardProps {
   inCourse?: boolean;
   courseFull?: boolean;
   onAddToCourse?: (place: PlaceWithReviewCount) => void;
+  /**
+   * 넘기면 카드 본문을 눌렀을 때 상세로 가는 대신 이걸 부른다.
+   * 모바일 목록에서 "시트를 닫고 지도의 그 지점으로" 보내는 데 쓴다.
+   */
+  onSelect?: (place: PlaceWithReviewCount) => void;
 }
 
-function PlaceCard({ place, selected = false, inCourse, courseFull, onAddToCourse }: PlaceCardProps) {
+function PlaceCard({
+  place,
+  selected = false,
+  inCourse,
+  courseFull,
+  onAddToCourse,
+  onSelect,
+}: PlaceCardProps) {
+  // 본문은 상세 링크가 기본이고, onSelect가 있으면 버튼으로 바뀐다.
+  const Body: React.ElementType = onSelect ? "button" : Link;
+  const bodyRest = onSelect
+    ? { type: "button" as const, onClick: () => onSelect(place) }
+    : { href: `/place/${place.id}` };
+
   return (
     // 지도에서 고른 카드는 테두리만으로는 눈에 안 들어와서, 여백·그림자·배경까지 같이 키운다.
     <article
@@ -32,7 +50,7 @@ function PlaceCard({ place, selected = false, inCourse, courseFull, onAddToCours
         />
       )}
       <div className="flex flex-1 flex-col gap-1">
-        <Link href={`/place/${place.id}`} className="flex flex-col gap-1">
+        <Body {...bodyRest} className="flex flex-col gap-1 text-left">
           <div className="flex items-center gap-2">
             <h2
               className={`font-semibold text-stone-900 hover:underline ${selected ? "text-lg" : ""}`}
@@ -62,7 +80,7 @@ function PlaceCard({ place, selected = false, inCourse, courseFull, onAddToCours
             </p>
           )}
           {place.business_hours && <p className="text-xs text-stone-500">{place.business_hours}</p>}
-        </Link>
+        </Body>
 
         <div className="mt-1 flex items-center gap-3 text-xs">
           <Link href={`/place/${place.id}`} className="text-stone-500 hover:underline">
