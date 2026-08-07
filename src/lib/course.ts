@@ -137,13 +137,12 @@ export function formatDistance(meters: number): string {
 // 저장 전 코스는 브라우저에만 둔다. 로그인이 없고, 저장을 눌러야 서버로 간다.
 // ---------------------------------------------------------------------------
 
-const DRAFT_KEY = "oroji.course.draft";
 const SAVED_KEY = "oroji.course.saved";
 
-function readDraft(): CourseStop[] {
+function readDraft(storageKey: string): CourseStop[] {
   if (typeof window === "undefined") return EMPTY_STOPS;
   try {
-    const raw = window.localStorage.getItem(DRAFT_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return EMPTY_STOPS;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return EMPTY_STOPS;
@@ -169,40 +168,58 @@ function readDraft(): CourseStop[] {
   }
 }
 
+const EMPTY_STOPS: CourseStop[] = [];
+
+export interface DraftStore {
+  subscribe(listener: () => void): () => void;
+  getSnapshot(): CourseStop[];
+  getServerSnapshot(): CourseStop[];
+  save(stops: CourseStop[]): void;
+}
+
 // useSyncExternalStore로 읽기 위한 최소한의 스토어.
 // localStorage는 React 바깥의 저장소라, effect에서 setState로 끌어오면
 // 렌더가 한 번 더 돌고 서버 렌더 결과와도 어긋난다.
-const EMPTY_STOPS: CourseStop[] = [];
-let draftCache: CourseStop[] | null = null;
-const draftListeners = new Set<() => void>();
+function createDraftStore(storageKey: string): DraftStore {
+  let cache: CourseStop[] | null = null;
+  const listeners = new Set<() => void>();
 
-export function subscribeDraft(listener: () => void): () => void {
-  draftListeners.add(listener);
-  return () => draftListeners.delete(listener);
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    /** 같은 내용이면 같은 배열을 돌려줘야 무한 렌더에 빠지지 않는다. */
+    getSnapshot() {
+      if (cache === null) cache = readDraft(storageKey);
+      return cache;
+    },
+    /** 서버에는 localStorage가 없으니 항상 빈 코스로 렌더한다. */
+    getServerSnapshot() {
+      return EMPTY_STOPS;
+    },
+    save(stops) {
+      cache = stops;
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(storageKey, JSON.stringify(stops));
+        } catch {
+          // 사생활 보호 모드 등 localStorage를 못 쓰는 환경에서는 메모리에만 둔다
+        }
+      }
+      listeners.forEach((listener) => listener());
+    },
+  };
 }
 
-/** 같은 내용이면 같은 배열을 돌려줘야 무한 렌더에 빠지지 않는다. */
-export function getDraftSnapshot(): CourseStop[] {
-  if (draftCache === null) draftCache = readDraft();
-  return draftCache;
-}
+/** 사용자가 지도에서 담는 코스 */
+export const courseDraft = createDraftStore("oroji.course.draft");
 
-/** 서버에는 localStorage가 없으니 항상 빈 코스로 렌더한다. */
-export function getDraftServerSnapshot(): CourseStop[] {
-  return EMPTY_STOPS;
-}
-
-export function saveDraft(stops: CourseStop[]): void {
-  draftCache = stops;
-  if (typeof window !== "undefined") {
-    try {
-      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(stops));
-    } catch {
-      // 사생활 보호 모드 등 localStorage를 못 쓰는 환경에서는 메모리에만 둔다
-    }
-  }
-  draftListeners.forEach((listener) => listener());
-}
+/**
+ * 관리자가 추천 코스를 짤 때 쓰는 작업대.
+ * 같은 브라우저에서 관리자도 자기 코스를 담아볼 수 있으므로 저장소를 나눈다.
+ */
+export const curatedDraft = createDraftStore("oroji.curated.draft");
 
 export interface SavedCourseRef {
   id: string;

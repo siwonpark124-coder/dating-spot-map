@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   CourseStop,
   MAX_STOPS,
@@ -15,7 +16,17 @@ import CourseSearchBox from "./CourseSearchBox";
 interface CourseTrayProps {
   stops: CourseStop[];
   onChange: (stops: CourseStop[]) => void;
-  onSave: (title: string) => Promise<string | null>;
+  /**
+   * 저장/등록. 성공하면 코스 id를, 실패하면 보여줄 이유를 돌려준다.
+   * curate 모드에서만 subtitle을 쓴다.
+   */
+  onSave: (title: string, subtitle: string) => Promise<{ id: string } | { error: string }>;
+  /** "save" = 사용자가 링크를 만든다, "curate" = 관리자가 추천 코스로 등록한다 */
+  mode?: "save" | "curate";
+  /** 추천 코스를 불러왔을 때 그 이름을 코스 이름 칸에 미리 채워둔다 */
+  initialTitle?: string;
+  /** 추천 코스를 불러오느라 덮어쓴 이전 코스가 있으면 되돌릴 수 있게 한다 */
+  onUndo?: () => void;
   /** 실제 보행 경로. 있으면 그 시간을, 없으면 직선 추정치를 보여준다. */
   walkLegs?: { meters: number | null; minutes: number | null }[];
   /** 경로를 받아오는 중이면 지금 보이는 값이 추정치라는 걸 알려준다. */
@@ -31,6 +42,9 @@ export default function CourseTray({
   stops,
   onChange,
   onSave,
+  mode = "save",
+  initialTitle = "",
+  onUndo,
   walkLegs,
   walkLoading,
   walkNoPath,
@@ -38,27 +52,32 @@ export default function CourseTray({
   onRetryWalk,
 }: CourseTrayProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle);
+  const [subtitle, setSubtitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedUrl, setSavedUrl] = useState<string | null>(null);
+  const [registered, setRegistered] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   if (stops.length === 0) return null;
 
+  const curating = mode === "curate";
   const legs = courseLegs(stops, walkLegs);
   const isFull = stops.length >= MAX_STOPS;
+  const tooShort = stops.length < 2;
 
   async function handleSave() {
     setSaving(true);
     setError(null);
     try {
-      const id = await onSave(title.trim());
-      if (!id) {
-        setError("저장에 실패했어요. 잠시 후 다시 시도해주세요.");
+      const result = await onSave(title.trim(), subtitle.trim());
+      if ("error" in result) {
+        setError(result.error);
         return;
       }
-      setSavedUrl(`${window.location.origin}/course/${id}`);
+      if (curating) setRegistered(true);
+      else setSavedUrl(`${window.location.origin}/course/${result.id}`);
     } finally {
       setSaving(false);
     }
@@ -69,7 +88,7 @@ export default function CourseTray({
       <div className="mx-auto flex max-w-3xl flex-col gap-3 p-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-stone-900">
-            내 코스 {stops.length}/{MAX_STOPS}
+            {curating ? "추천 코스" : "내 코스"} {stops.length}/{MAX_STOPS}
             {stops.length > 1 && (
               <span className="ml-2 font-normal text-stone-500">
                 걸어서 총 {totalWalkMinutes(stops, walkLegs)}분
@@ -94,6 +113,20 @@ export default function CourseTray({
             </button>
           </div>
         </div>
+
+        {/* 추천 코스를 불러오면서 담아둔 코스를 덮어쓴 경우. 한 번에 되돌릴 수 있게 한다. */}
+        {onUndo && (
+          <p className="flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
+            추천 코스를 불러왔어요. 담아두셨던 코스는 사라졌어요.
+            <button
+              type="button"
+              onClick={onUndo}
+              className="shrink-0 font-medium underline hover:text-amber-950"
+            >
+              이전 코스로 되돌리기
+            </button>
+          </p>
+        )}
 
         {!collapsed && (
           <>
@@ -203,6 +236,59 @@ export default function CourseTray({
                   </button>
                 </div>
               </div>
+            ) : registered ? (
+              <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-100 p-2.5">
+                <p className="text-xs text-stone-600">
+                  추천 코스로 등록했어요. 첫 화면의 &lsquo;추천 코스&rsquo;에 바로 뜹니다.
+                </p>
+                <div className="flex shrink-0 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegistered(false);
+                      setTitle("");
+                      setSubtitle("");
+                      onChange([]);
+                    }}
+                    className="underline text-stone-600 hover:text-stone-800"
+                  >
+                    새 코스 짜기
+                  </button>
+                  <Link href="/review/curated" className="underline text-amber-700 hover:text-amber-900">
+                    목록으로
+                  </Link>
+                </div>
+              </div>
+            ) : curating ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    maxLength={40}
+                    placeholder="코스 이름 (필수) — 예: 성수 저녁 3시간"
+                    className="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving || tooShort || !title.trim()}
+                    title={tooShort ? "두 곳 이상 담아야 코스가 돼요" : undefined}
+                    className="shrink-0 rounded-lg bg-amber-800 px-4 py-2 text-sm font-medium text-white hover:bg-amber-900 disabled:bg-stone-300"
+                  >
+                    {saving ? "등록 중…" : "추천 코스로 등록"}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                  maxLength={60}
+                  placeholder="한 줄 설명 (선택) — 예: 조용히 얘기하기 좋은 조합"
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none"
+                />
+              </div>
             ) : (
               <div className="flex gap-2">
                 <input
@@ -216,8 +302,8 @@ export default function CourseTray({
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={saving || stops.length < 2}
-                  title={stops.length < 2 ? "두 곳 이상 담아야 코스가 돼요" : undefined}
+                  disabled={saving || tooShort}
+                  title={tooShort ? "두 곳 이상 담아야 코스가 돼요" : undefined}
                   className="shrink-0 rounded-lg bg-amber-800 px-4 py-2 text-sm font-medium text-white hover:bg-amber-900 disabled:bg-stone-300"
                 >
                   {saving ? "저장 중…" : "저장하고 링크 만들기"}

@@ -75,6 +75,12 @@ interface KakaoMapProps {
    * 동네처럼 보고 있어야 할 지역 자체가 달라지는 경우에만 넘긴다.
    */
   fitBoundsKey?: string;
+  /**
+   * 이 값이 바뀌면 장소가 아니라 courseStops에 시야를 맞춘다.
+   * 추천 코스를 통째로 불러왔을 때처럼, 지금 보고 있는 지역 밖에
+   * 코스가 그려지는 경우를 위한 것이다.
+   */
+  fitCourseKey?: string;
 }
 
 export default function KakaoMap({
@@ -85,6 +91,7 @@ export default function KakaoMap({
   courseStops,
   walkLegs,
   fitBoundsKey = "",
+  fitCourseKey,
 }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -98,6 +105,7 @@ export default function KakaoMap({
   const markerImageCacheRef = useRef<Partial<Record<PlaceCategory, any>>>({});
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const lastFitKeyRef = useRef<string | null>(null);
+  const lastCourseFitKeyRef = useRef<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
@@ -249,6 +257,22 @@ export default function KakaoMap({
       lines.forEach((line) => line.setMap(null));
     };
   }, [courseStops, walkLegs, mapReady]);
+
+  // 코스를 통째로 바꿨을 때 그 코스가 화면에 들어오도록 시야를 맞춘다.
+  // 위의 범위 맞추기는 '필터된 장소' 기준이라, 강남을 보다가 성수 코스를
+  // 불러오면 코스 선이 화면 밖에 그려진다.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !fitCourseKey) return;
+    if (lastCourseFitKeyRef.current === fitCourseKey) return;
+    const stops = courseStops ?? [];
+    if (stops.length === 0) return;
+
+    const bounds = new window.kakao.maps.LatLngBounds();
+    stops.forEach((stop) => bounds.extend(new window.kakao.maps.LatLng(stop.lat, stop.lng)));
+    // 마커가 가장자리에 붙지 않도록 여백을 준다 (번호 마커 높이가 46px).
+    mapRef.current.setBounds(bounds, 80, 80, 80, 80);
+    lastCourseFitKeyRef.current = fitCourseKey;
+  }, [fitCourseKey, courseStops, mapReady]);
 
   // 선택된 장소로 확대·이동. 이미 그보다 확대해서 보고 있다면 배율은 건드리지 않는다.
   useEffect(() => {

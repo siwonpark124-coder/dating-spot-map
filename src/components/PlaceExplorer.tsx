@@ -15,14 +15,14 @@ import {
   CourseStop,
   MAX_STOPS,
   addStop,
-  getDraftServerSnapshot,
-  getDraftSnapshot,
+  courseDraft,
+  curatedDraft,
   hasStop,
   rememberSavedCourse,
-  saveDraft,
   stopFromPlace,
-  subscribeDraft,
 } from "@/lib/course";
+import { CuratedCourse } from "@/lib/curatedCourses";
+import { StopInput } from "@/lib/courseRecord";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { useWalkRouteState } from "@/lib/useWalkRoute";
 import { saveCourse } from "@/app/course/actions";
@@ -30,13 +30,36 @@ import KakaoMap from "./KakaoMap";
 import PlaceCard from "./PlaceCard";
 import Filters from "./Filters";
 import CourseTray from "./CourseTray";
+import CuratedCoursePicker from "./CuratedCoursePicker";
 import LogoMark from "./LogoMark";
 
 // 목록에 한 번에 그릴 카드 수. 400곳을 전부 그리면 카드 하나당 DOM 16개라
 // 필터를 누를 때마다 7천 노드를 다시 그리게 되고, 그게 체감 렉의 대부분이었다.
 const PAGE_SIZE = 40;
 
-export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount[] }) {
+interface PlaceExplorerProps {
+  places: PlaceWithReviewCount[];
+  /** 첫 화면에 띄울 추천 코스. 관리자 작성 화면에서는 넘기지 않는다. */
+  curatedCourses?: CuratedCourse[];
+  /**
+   * 넘기면 추천 코스 작성 모드가 된다 (관리자 전용 화면에서만 넘긴다).
+   * 서버 액션을 여기서 직접 import하지 않고 prop으로 받는 이유는,
+   * 첫 화면 번들에 관리자용 액션 참조가 실리지 않게 하려는 것이다.
+   */
+  registerCuratedAction?: (
+    stops: StopInput[],
+    title: string,
+    subtitle: string,
+  ) => Promise<{ id: string } | { error: string }>;
+}
+
+export default function PlaceExplorer({
+  places,
+  curatedCourses = [],
+  registerCuratedAction,
+}: PlaceExplorerProps) {
+  // 코스를 짜는 화면 자체는 같고, 다 짠 코스를 어디에 저장하느냐만 다르다.
+  const curating = Boolean(registerCuratedAction);
   // 필터 상태의 원본은 URL. 그래야 지금 보고 있는 화면을 그대로 링크로 보낼 수 있다.
   const searchParams = useSearchParams();
   const filters = useMemo(
@@ -127,13 +150,47 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
   }, [effectiveCount, filteredPlaces.length]);
 
   // 저장 전 코스는 localStorage에만 있다. React 바깥 저장소라 외부 스토어로 읽는다.
+  // 관리자가 추천 코스를 짜는 동안 자기 코스가 덮이지 않도록 작업대를 나눠 쓴다.
+  const draft = curating ? curatedDraft : courseDraft;
   const courseStops = useSyncExternalStore(
-    subscribeDraft,
-    getDraftSnapshot,
-    getDraftServerSnapshot,
+    draft.subscribe,
+    draft.getSnapshot,
+    draft.getServerSnapshot,
   );
 
-  const updateCourse = useCallback((stops: CourseStop[]) => saveDraft(stops), []);
+  // 추천 코스를 불러오면 담아둔 코스를 덮어쓰므로, 한 번은 되돌릴 수 있게 들고 있는다.
+  const [undoStops, setUndoStops] = useState<CourseStop[] | null>(null);
+  // 코스가 통째로 바뀔 때만 지도 시야를 그 코스로 맞추기 위한 신호.
+  const [courseFitKey, setCourseFitKey] = useState(0);
+  const [loadedTitle, setLoadedTitle] = useState("");
+
+  // 사용자가 코스를 직접 건드리면 되돌리기 제안은 사라진다.
+  const updateCourse = useCallback(
+    (stops: CourseStop[]) => {
+      setUndoStops(null);
+      draft.save(stops);
+    },
+    [draft],
+  );
+
+  const pickCuratedCourse = useCallback(
+    (course: CuratedCourse) => {
+      setUndoStops(courseStops.length > 0 ? courseStops : null);
+      setLoadedTitle(course.title);
+      setCourseFitKey((key) => key + 1);
+      draft.save(course.stops);
+    },
+    [courseStops, draft],
+  );
+
+  const undoCuratedLoad = useCallback(() => {
+    if (!undoStops) return;
+    draft.save(undoStops);
+    setUndoStops(null);
+    setLoadedTitle("");
+    setCourseFitKey((key) => key + 1);
+  }, [undoStops, draft]);
+
   const {
     legs: walkLegs,
     loading: walkLoading,
@@ -143,20 +200,27 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
   } = useWalkRouteState(courseStops);
 
   const handleSaveCourse = useCallback(
-    async (title: string) => {
-      const result = await saveCourse(
-        courseStops.map((s) => ({ placeId: s.placeId, label: s.label, lat: s.lat, lng: s.lng })),
-        title,
-      );
-      if ("error" in result) return null;
-      rememberSavedCourse({
-        id: result.id,
-        title: title || "데이트 코스",
-        savedAt: new Date().toISOString(),
-      });
-      return result.id;
+    async (title: string, subtitle: string) => {
+      const payload = courseStops.map((s) => ({
+        placeId: s.placeId,
+        label: s.label,
+        lat: s.lat,
+        lng: s.lng,
+      }));
+
+      if (registerCuratedAction) return registerCuratedAction(payload, title, subtitle);
+
+      const result = await saveCourse(payload, title);
+      if (!("error" in result)) {
+        rememberSavedCourse({
+          id: result.id,
+          title: title || "데이트 코스",
+          savedAt: new Date().toISOString(),
+        });
+      }
+      return result;
     },
-    [courseStops],
+    [courseStops, registerCuratedAction],
   );
 
   // 선택된 카드를 목록 맨 위로 올린다.
@@ -174,10 +238,22 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
         <div className="flex shrink-0 items-center gap-2.5">
           <LogoMark className="h-9 w-9 shrink-0" />
           <div className="flex flex-col">
-            <h1 className="text-xl font-bold text-stone-900">오로지</h1>
-            <p className="text-xs text-stone-500">오늘 로맨틱한 지점 · 오로지 당신의 성공적인 만남을 위해</p>
+            <h1 className="text-xl font-bold text-stone-900">
+              {curating ? "추천 코스 짜기" : "오로지"}
+            </h1>
+            <p className="text-xs text-stone-500">
+              {curating
+                ? "평소처럼 코스를 담고, 아래에서 이름을 붙여 등록하세요"
+                : "오늘 로맨틱한 지점 · 오로지 당신의 성공적인 만남을 위해"}
+            </p>
           </div>
         </div>
+
+        {/* 필터가 아니라 화면을 여는 동작이라 필터 묶음 바깥에 둔다. */}
+        {!curating && (
+          <CuratedCoursePicker courses={curatedCourses} onPick={pickCuratedCourse} />
+        )}
+
         <Filters
           neighborhood={neighborhood}
           onNeighborhoodChange={(v) => updateFilters({ neighborhood: v })}
@@ -200,15 +276,23 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
               필터 초기화
             </button>
           )}
-          <Link href="/feedback" className="underline hover:text-stone-700">
-            피드백 남기기
-          </Link>
-          <Link href="/course-suggestions" className="underline hover:text-stone-700">
-            코스 추천하기
-          </Link>
-          <Link href="/business" className="underline hover:text-stone-700">
-            비즈니스 협업
-          </Link>
+          {curating ? (
+            <Link href="/review/curated" className="underline hover:text-stone-700">
+              ← 추천 코스 목록
+            </Link>
+          ) : (
+            <>
+              <Link href="/feedback" className="underline hover:text-stone-700">
+                피드백 남기기
+              </Link>
+              <Link href="/course-suggestions" className="underline hover:text-stone-700">
+                코스 추천하기
+              </Link>
+              <Link href="/business" className="underline hover:text-stone-700">
+                비즈니스 협업
+              </Link>
+            </>
+          )}
         </div>
       </header>
 
@@ -223,6 +307,8 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
             // 동네를 바꿀 때만 시야를 다시 맞춘다. 카테고리·분위기·가격은
             // 보이는 지역이 그대로라 시야를 유지하는 편이 훑어보기 좋다.
             fitBoundsKey={neighborhood}
+            // 추천 코스를 불러왔을 때는 다른 동네를 보고 있어도 그 코스로 시야를 옮긴다.
+            fitCourseKey={courseFitKey > 0 ? String(courseFitKey) : undefined}
           />
         </div>
 
@@ -301,10 +387,15 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
         </div>
       </div>
 
+      {/* 추천 코스를 새로 불러올 때마다 입력 중이던 이름·저장 결과를 초기화한다. */}
       <CourseTray
+        key={`tray-${courseFitKey}`}
         stops={courseStops}
         onChange={updateCourse}
         onSave={handleSaveCourse}
+        mode={curating ? "curate" : "save"}
+        initialTitle={loadedTitle}
+        onUndo={undoStops ? undoCuratedLoad : undefined}
         walkLegs={walkLegs}
         walkLoading={walkLoading}
         walkNoPath={walkNoPath}

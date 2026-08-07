@@ -41,6 +41,7 @@ export default async function ReviewPage() {
     { count: siteFeedbackCount },
     { count: courseSuggestionCount },
     { count: businessInquiryCount },
+    { count: curatedCount },
   ] = await Promise.all([
     supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
     supabaseAdmin.from("places").select("id", { count: "exact", head: true }).eq("status", "rejected"),
@@ -61,6 +62,7 @@ export default async function ReviewPage() {
     supabaseAdmin.from("site_feedback").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabaseAdmin.from("course_suggestions").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabaseAdmin.from("business_inquiries").select("id", { count: "exact", head: true }).eq("status", "new"),
+    supabaseAdmin.from("courses").select("id", { count: "exact", head: true }).eq("is_curated", true),
   ]);
 
   const decidedCount = (publishedCount ?? 0) + (rejectedCount ?? 0);
@@ -88,6 +90,9 @@ export default async function ReviewPage() {
           </Link>
           <Link href="/review/published" className="text-amber-700 underline">
             발행된 장소 수정
+          </Link>
+          <Link href="/review/curated" className="text-amber-700 underline">
+            추천 코스{curatedCount ? ` (${curatedCount})` : ""}
           </Link>
           <Link href="/review/rejected" className="text-amber-700 underline">
             제외한 장소{rejectedCount ? ` (${rejectedCount})` : ""}
