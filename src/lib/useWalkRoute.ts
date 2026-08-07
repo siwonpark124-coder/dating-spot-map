@@ -17,8 +17,10 @@ export interface WalkRouteState {
   legs: WalkLeg[];
   /** 경로를 받아오는 중. 이 동안은 직선으로 그려지므로 화면에 알려준다. */
   loading: boolean;
-  /** 응답은 왔는데 경로가 없음 (키 미설정이거나 호출 실패). 직선으로 그려진 이유. */
-  unavailable: boolean;
+  /** 지도에 그릴 경로선이 없음 → 직선으로 그려진다. */
+  noPath: boolean;
+  /** 거리·시간까지 못 받음 → 직선거리 추정치를 쓴다. noPath보다 나쁜 상태. */
+  noDistance: boolean;
   /** 사용자가 직접 다시 시도 */
   retry: () => void;
 }
@@ -90,10 +92,14 @@ export function useWalkRouteState(stops: CourseStop[]): WalkRouteState {
   // 정거장이 바뀌었는데 아직 응답이 안 왔으면 이전 코스의 경로를 그리지 않는다.
   const settled = fetched.key === key;
   const legs = settled ? fetched.legs : EMPTY;
+  // 선과 거리·시간은 별개로 실패할 수 있다. ORS가 구간 요약(distance/duration)은 줬는데
+  // 경로 좌표를 구간별로 자르지 못한 경우, 선만 직선이고 시간·거리는 실제 값이다.
+  const done = needsRoute && settled;
   return {
     legs,
     loading: needsRoute && !settled,
-    unavailable: needsRoute && settled && legs.every((leg) => leg.path.length < 2),
+    noPath: done && legs.every((leg) => leg.path.length < 2),
+    noDistance: done && legs.every((leg) => leg.meters == null),
     retry: () => setAttempt((n) => n + 1),
   };
 }

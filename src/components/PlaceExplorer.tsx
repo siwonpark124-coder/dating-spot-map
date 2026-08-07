@@ -137,7 +137,8 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
   const {
     legs: walkLegs,
     loading: walkLoading,
-    unavailable: walkUnavailable,
+    noPath: walkNoPath,
+    noDistance: walkNoDistance,
     retry: retryWalk,
   } = useWalkRouteState(courseStops);
 
@@ -306,7 +307,8 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
         onSave={handleSaveCourse}
         walkLegs={walkLegs}
         walkLoading={walkLoading}
-        walkUnavailable={walkUnavailable}
+        walkNoPath={walkNoPath}
+        walkNoDistance={walkNoDistance}
         onRetryWalk={retryWalk}
       />
     </div>
