@@ -15,6 +15,10 @@ interface FiltersProps {
   onPriceTiersChange: (tiers: (1 | 2 | 3)[]) => void;
   firstMeetingOnly: boolean;
   onFirstMeetingOnlyChange: (only: boolean) => void;
+  /** 식당 분류(한식·일식…). 실제 데이터에 있는 것만 넘어온다. */
+  cuisineOptions: string[];
+  cuisines: string[];
+  onCuisinesChange: (cuisines: string[]) => void;
 }
 
 const NEIGHBORHOOD_OPTIONS: NeighborhoodFilter[] = ["all", ...NEIGHBORHOODS];
@@ -36,9 +40,16 @@ export default function Filters({
   onPriceTiersChange,
   firstMeetingOnly,
   onFirstMeetingOnlyChange,
+  cuisineOptions,
+  cuisines,
+  onCuisinesChange,
 }: FiltersProps) {
+  // 분류는 식당을 볼 때만 뜻이 있다. 카페·바는 cuisine이 거의 비어 있다.
+  const showCuisines = category === "restaurant" && cuisineOptions.length > 0;
   return (
-    <div className="flex flex-1 flex-wrap items-center gap-2">
+    // 모바일에서는 줄바꿈 대신 가로 스크롤 한 줄로 둔다.
+    // 칩이 19개라 그냥 감싸면 헤더가 화면의 절반을 먹고 지도가 사라진다.
+    <div className="flex w-full flex-1 items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] md:w-auto md:flex-wrap md:overflow-x-visible md:pb-0">
       {/* 다른 필터와 성격이 달라(장소 성격 자체를 거르는 스위치) 맨 앞에 따로 둔다. */}
       <button
         type="button"
@@ -56,12 +67,12 @@ export default function Filters({
 
       <div className="h-5 w-px shrink-0 bg-stone-300" />
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex shrink-0 gap-1.5 md:flex-wrap">
         {NEIGHBORHOOD_OPTIONS.map((option) => (
           <button
             key={option}
             onClick={() => onNeighborhoodChange(option)}
-            className={`rounded-full px-3 py-1 text-sm transition-colors ${
+            className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm transition-colors ${
               neighborhood === option
                 ? "bg-amber-800 text-white"
                 : "bg-amber-50 text-amber-900 hover:bg-amber-100"
@@ -74,12 +85,12 @@ export default function Filters({
 
       <div className="h-5 w-px shrink-0 bg-stone-300" />
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex shrink-0 gap-1.5 md:flex-wrap">
         {CATEGORY_OPTIONS.map((option) => (
           <button
             key={option}
             onClick={() => onCategoryChange(option)}
-            className={`rounded-full px-3 py-1 text-sm transition-colors ${
+            className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm transition-colors ${
               category === option
                 ? "bg-stone-800 text-white"
                 : "bg-stone-100 text-stone-700 hover:bg-stone-200"
@@ -90,14 +101,35 @@ export default function Filters({
         ))}
       </div>
 
+      {showCuisines && (
+        <>
+          <div className="h-5 w-px shrink-0 bg-stone-300" />
+          <div className="flex shrink-0 gap-1.5 md:flex-wrap">
+            {cuisineOptions.map((option) => (
+              <button
+                key={option}
+                onClick={() => onCuisinesChange(toggleValue(cuisines, option))}
+                className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-sm transition-colors ${
+                  cuisines.includes(option)
+                    ? "border-orange-700 bg-orange-700 text-white"
+                    : "border-orange-300 text-orange-900 hover:bg-orange-50"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       <div className="h-5 w-px shrink-0 bg-stone-300" />
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex shrink-0 gap-1.5 md:flex-wrap">
         {MOOD_TAGS.map((tag) => (
           <button
             key={tag}
             onClick={() => onMoodTagsChange(toggleValue(moodTags, tag))}
-            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+            className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-sm transition-colors ${
               moodTags.includes(tag)
                 ? "border-stone-800 bg-stone-800 text-white"
                 : "border-stone-300 text-stone-700 hover:bg-stone-100"
@@ -110,12 +142,12 @@ export default function Filters({
 
       <div className="h-5 w-px shrink-0 bg-stone-300" />
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex shrink-0 gap-1.5 md:flex-wrap">
         {PRICE_TIER_OPTIONS.map((tier) => (
           <button
             key={tier}
             onClick={() => onPriceTiersChange(toggleValue(priceTiers, tier))}
-            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+            className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-sm transition-colors ${
               priceTiers.includes(tier)
                 ? "border-stone-800 bg-stone-800 text-white"
                 : "border-stone-300 text-stone-700 hover:bg-stone-100"

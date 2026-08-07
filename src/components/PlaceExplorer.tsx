@@ -10,6 +10,8 @@ import {
   parseFilters,
   toSearchParams,
   hasActiveFilters,
+  cuisineMajor,
+  normalizeForSearch,
 } from "@/lib/placeFilters";
 import {
   CourseStop,
@@ -66,7 +68,8 @@ export default function PlaceExplorer({
     () => parseFilters(new URLSearchParams(searchParams.toString())),
     [searchParams],
   );
-  const { neighborhood, category, moodTags, priceTiers, firstMeetingOnly, sort } = filters;
+  const { neighborhood, category, moodTags, priceTiers, firstMeetingOnly, query, cuisines, sort } =
+    filters;
 
   // history API로 URL만 바꾼다. router.replace를 쓰면 force-dynamic인 페이지가
   // 필터 클릭마다 장소 전체를 다시 쿼리하게 된다.
@@ -77,7 +80,19 @@ export default function PlaceExplorer({
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   }, []);
 
+  // 식당 분류 칩은 실제로 있는 값만 보여준다. 많은 순으로 정렬해 자주 쓰는 게 앞에 오게 한다.
+  const cuisineOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    places.forEach((place) => {
+      if (place.category !== "restaurant") return;
+      const major = cuisineMajor(place.cuisine);
+      if (major) counts.set(major, (counts.get(major) ?? 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([major]) => major);
+  }, [places]);
+
   const filteredPlaces = useMemo(() => {
+    const needle = normalizeForSearch(query);
     const filtered = places.filter((place) => {
       const matchesNeighborhood = neighborhood === "all" || place.neighborhood === neighborhood;
       const matchesCategory = category === "all" || place.category === category;
@@ -85,14 +100,42 @@ export default function PlaceExplorer({
       const matchesPrice =
         priceTiers.length === 0 || (place.price_tier !== null && priceTiers.includes(place.price_tier));
       const matchesFirstMeeting = !firstMeetingOnly || place.first_meeting_ok;
-      return matchesNeighborhood && matchesCategory && matchesMood && matchesPrice && matchesFirstMeeting;
+      // 분류는 식당에만 적용한다 (카페·바를 함께 보고 있을 때 그것들까지 걸러내지 않도록)
+      const matchesCuisine =
+        cuisines.length === 0 ||
+        place.category !== "restaurant" ||
+        cuisines.includes(cuisineMajor(place.cuisine) ?? "");
+      // 이름으로 못 찾으면 주소로도 찾아준다 ("을지로3가"처럼 위치로 기억하는 경우)
+      const matchesQuery =
+        !needle ||
+        normalizeForSearch(place.name).includes(needle) ||
+        normalizeForSearch(place.address).includes(needle);
+      return (
+        matchesNeighborhood &&
+        matchesCategory &&
+        matchesMood &&
+        matchesPrice &&
+        matchesFirstMeeting &&
+        matchesCuisine &&
+        matchesQuery
+      );
     });
 
     if (sort === "popular") {
       return [...filtered].sort((a, b) => b.review_count - a.review_count);
     }
     return filtered;
-  }, [places, neighborhood, category, moodTags, priceTiers, firstMeetingOnly, sort]);
+  }, [places, neighborhood, category, moodTags, priceTiers, firstMeetingOnly, cuisines, query, sort]);
+
+  // 검색어는 입력칸이 원본이고 URL이 따라간다. URL을 원본으로 두면
+  // 라우터 갱신이 한 박자 늦어 타이핑이 씹힌다.
+  const [searchInput, setSearchInput] = useState(query);
+  const [lastQuery, setLastQuery] = useState(query);
+  if (lastQuery !== query) {
+    // 필터 초기화처럼 밖에서 URL이 바뀐 경우 입력칸도 맞춰준다
+    setLastQuery(query);
+    setSearchInput(query);
+  }
 
   // 목록은 조금씩 늘려가며 그린다. 지도 마커는 필터 결과 전체를 계속 보여준다.
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -234,25 +277,30 @@ export default function PlaceExplorer({
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex flex-wrap items-center gap-4 border-b border-stone-200 bg-[#fbf7ef] px-6 py-5">
+      {/* 모바일은 '로고 줄 + 필터 한 줄'로 눌러둔다. 데스크탑은 기존처럼 한 줄에 펼친다. */}
+      <header className="flex shrink-0 flex-col gap-2 border-b border-stone-200 bg-[#fbf7ef] px-4 py-3 md:flex-row md:flex-wrap md:items-center md:gap-4 md:px-6 md:py-5">
         <div className="flex shrink-0 items-center gap-2.5">
-          <LogoMark className="h-9 w-9 shrink-0" />
-          <div className="flex flex-col">
-            <h1 className="text-xl font-bold text-stone-900">
+          <LogoMark className="h-8 w-8 shrink-0 md:h-9 md:w-9" />
+          <div className="flex min-w-0 flex-col">
+            <h1 className="text-lg font-bold text-stone-900 md:text-xl">
               {curating ? "추천 코스 짜기" : "오로지"}
             </h1>
-            <p className="text-xs text-stone-500">
+            {/* 설명 문구는 모바일에서 자리만 차지한다 */}
+            <p className="hidden text-xs text-stone-500 md:block">
               {curating
                 ? "평소처럼 코스를 담고, 아래에서 이름을 붙여 등록하세요"
                 : "오늘 로맨틱한 지점 · 오로지 당신의 성공적인 만남을 위해"}
             </p>
           </div>
-        </div>
 
-        {/* 필터가 아니라 화면을 여는 동작이라 필터 묶음 바깥에 둔다. */}
-        {!curating && (
-          <CuratedCoursePicker courses={curatedCourses} onPick={pickCuratedCourse} />
-        )}
+          {/* 필터가 아니라 화면을 여는 동작이라 필터 묶음 바깥에 둔다.
+              모바일에선 로고 줄 오른쪽 끝으로 밀어 한 줄을 아낀다. */}
+          {!curating && (
+            <div className="ml-auto md:ml-3">
+              <CuratedCoursePicker courses={curatedCourses} onPick={pickCuratedCourse} />
+            </div>
+          )}
+        </div>
 
         <Filters
           neighborhood={neighborhood}
@@ -265,8 +313,12 @@ export default function PlaceExplorer({
           onPriceTiersChange={(v) => updateFilters({ priceTiers: v })}
           firstMeetingOnly={firstMeetingOnly}
           onFirstMeetingOnlyChange={(v) => updateFilters({ firstMeetingOnly: v })}
+          cuisineOptions={cuisineOptions}
+          cuisines={cuisines}
+          onCuisinesChange={(v) => updateFilters({ cuisines: v })}
         />
-        <div className="flex shrink-0 items-center gap-3 text-sm text-stone-500">
+        {/* 보조 링크는 모바일에서 목록 맨 아래로 내린다 (헤더 높이를 아끼려고) */}
+        <div className="hidden shrink-0 items-center gap-3 text-sm text-stone-500 md:flex">
           {hasActiveFilters(filters) && (
             <button
               type="button"
@@ -297,7 +349,9 @@ export default function PlaceExplorer({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <div className="min-h-[50vh] flex-1 md:min-h-0">
+        {/* 모바일: 지도는 고정 높이, 남는 공간은 목록이 가져가 내부에서 스크롤한다.
+            지도에 flex-1을 주면 목록이 늘어나면서 지도를 화면 밖으로 밀어낸다. */}
+        <div className="h-[38vh] shrink-0 md:h-auto md:min-h-0 md:flex-1">
           <KakaoMap
             places={filteredPlaces}
             onPlaceClick={(place) => setSelectedPlaceId(place.id)}
@@ -314,8 +368,22 @@ export default function PlaceExplorer({
 
         <div
           ref={listRef}
-          className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-stone-200 bg-[#fbf7ef] md:w-[380px] md:border-t-0 md:border-l"
+          className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto border-t border-stone-200 bg-[#fbf7ef] md:w-[380px] md:flex-none md:border-t-0 md:border-l"
         >
+          <div className="relative shrink-0 border-b border-stone-200 p-3 pb-0">
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                updateFilters({ query: e.target.value });
+              }}
+              maxLength={40}
+              placeholder="가게 이름 검색"
+              className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-stone-500 focus:outline-none"
+            />
+          </div>
+
           <div className="flex shrink-0 gap-1.5 border-b border-stone-200 p-3">
             <button
               type="button"
@@ -336,10 +404,31 @@ export default function PlaceExplorer({
               후기 많은순
             </button>
 
-            <span className="ml-auto self-center text-xs text-stone-500">{filteredPlaces.length}곳</span>
+            {/* 헤더에서 내려온 초기화 버튼 (모바일 전용) */}
+            {hasActiveFilters(filters) && (
+              <button
+                type="button"
+                onClick={() => updateFilters(DEFAULT_FILTERS)}
+                className="ml-auto self-center text-xs text-stone-500 underline md:hidden"
+              >
+                필터 초기화
+              </button>
+            )}
+            <span
+              className={`self-center text-xs text-stone-500 ${
+                hasActiveFilters(filters) ? "ml-3 md:ml-auto" : "ml-auto"
+              }`}
+            >
+              {filteredPlaces.length}곳
+            </span>
           </div>
 
-          <div className="flex flex-col gap-3 p-3">
+          {/* 코스 트레이가 화면 아래를 덮으므로 마지막 카드가 가리지 않게 여백을 준다 */}
+          <div
+            className={`flex flex-col gap-3 p-3 ${
+              courseStops.length > 0 ? "pb-52 md:pb-3" : ""
+            }`}
+          >
             {filteredPlaces.length === 0 && (
               <p className="text-sm text-stone-500">
                 조건에 맞는 장소가 없어요.
@@ -382,6 +471,21 @@ export default function PlaceExplorer({
               >
                 {filteredPlaces.length - effectiveCount}곳 더 보기
               </button>
+            )}
+
+            {/* 헤더에 두면 모바일에서 한 줄을 통째로 먹어서 목록 끝으로 내렸다 */}
+            {!curating && (
+              <div className="flex flex-wrap gap-x-4 gap-y-2 pt-2 text-xs text-stone-500 md:hidden">
+                <Link href="/feedback" className="underline">
+                  피드백 남기기
+                </Link>
+                <Link href="/course-suggestions" className="underline">
+                  코스 추천하기
+                </Link>
+                <Link href="/business" className="underline">
+                  비즈니스 협업
+                </Link>
+              </div>
             )}
           </div>
         </div>

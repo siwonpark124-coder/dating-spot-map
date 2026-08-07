@@ -85,7 +85,8 @@ export default function CourseTray({
 
   return (
     <div className="pointer-events-auto fixed inset-x-0 bottom-0 z-30 border-t border-stone-300 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
-      <div className="mx-auto flex max-w-3xl flex-col gap-3 p-3">
+      {/* 모바일에서 코스가 4곳이면 트레이만 화면의 40%를 먹는다. 높이를 묶고 안에서 스크롤시킨다. */}
+      <div className="mx-auto flex max-h-[55vh] max-w-3xl flex-col gap-3 overflow-y-auto p-3 md:max-h-none md:overflow-visible">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-stone-900">
             {curating ? "추천 코스" : "내 코스"} {stops.length}/{MAX_STOPS}
