@@ -134,7 +134,12 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
   );
 
   const updateCourse = useCallback((stops: CourseStop[]) => saveDraft(stops), []);
-  const { legs: walkLegs, loading: walkLoading } = useWalkRouteState(courseStops);
+  const {
+    legs: walkLegs,
+    loading: walkLoading,
+    unavailable: walkUnavailable,
+    retry: retryWalk,
+  } = useWalkRouteState(courseStops);
 
   const handleSaveCourse = useCallback(
     async (title: string) => {
@@ -301,6 +306,8 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
         onSave={handleSaveCourse}
         walkLegs={walkLegs}
         walkLoading={walkLoading}
+        walkUnavailable={walkUnavailable}
+        onRetryWalk={retryWalk}
       />
     </div>
   );

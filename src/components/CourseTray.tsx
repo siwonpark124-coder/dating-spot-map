@@ -20,6 +20,9 @@ interface CourseTrayProps {
   walkLegs?: { meters: number | null; minutes: number | null }[];
   /** 경로를 받아오는 중이면 지금 보이는 값이 추정치라는 걸 알려준다. */
   walkLoading?: boolean;
+  /** 보행 경로를 못 받아 직선으로 그린 상태. 이유를 알려주고 다시 시도할 수 있게 한다. */
+  walkUnavailable?: boolean;
+  onRetryWalk?: () => void;
 }
 
 export default function CourseTray({
@@ -28,6 +31,8 @@ export default function CourseTray({
   onSave,
   walkLegs,
   walkLoading,
+  walkUnavailable,
+  onRetryWalk,
 }: CourseTrayProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [title, setTitle] = useState("");
@@ -149,6 +154,17 @@ export default function CourseTray({
                 </li>
               ))}
             </ol>
+
+            {walkUnavailable && !walkLoading && (
+              <p className="flex items-center gap-2 rounded-lg bg-stone-100 px-2.5 py-2 text-xs text-stone-600">
+                보행 경로를 못 받아서 직선으로 표시했어요. 시간·거리는 추정치예요.
+                {onRetryWalk && (
+                  <button type="button" onClick={onRetryWalk} className="underline hover:text-stone-800">
+                    다시 시도
+                  </button>
+                )}
+              </p>
+            )}
 
             <CourseSearchBox
               disabled={isFull}

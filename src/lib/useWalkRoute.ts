@@ -17,6 +17,10 @@ export interface WalkRouteState {
   legs: WalkLeg[];
   /** 경로를 받아오는 중. 이 동안은 직선으로 그려지므로 화면에 알려준다. */
   loading: boolean;
+  /** 응답은 왔는데 경로가 없음 (키 미설정이거나 호출 실패). 직선으로 그려진 이유. */
+  unavailable: boolean;
+  /** 사용자가 직접 다시 시도 */
+  retry: () => void;
 }
 
 /**
@@ -36,6 +40,8 @@ export function useWalkRouteState(stops: CourseStop[]): WalkRouteState {
     key: "",
     legs: EMPTY,
   });
+  // 값을 바꿔 effect를 다시 돌리기 위한 카운터 (좌표가 그대로여도 재요청하고 싶을 때)
+  const [attempt, setAttempt] = useState(0);
 
   // 좌표가 바뀔 때만 다시 부른다. 이름만 바뀐 경우는 경로가 같다.
   const key = stops.map((s) => `${s.lat.toFixed(5)},${s.lng.toFixed(5)}`).join("|");
@@ -79,12 +85,15 @@ export function useWalkRouteState(stops: CourseStop[]): WalkRouteState {
       clearTimeout(retryTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, needsRoute]);
+  }, [key, needsRoute, attempt]);
 
   // 정거장이 바뀌었는데 아직 응답이 안 왔으면 이전 코스의 경로를 그리지 않는다.
   const settled = fetched.key === key;
+  const legs = settled ? fetched.legs : EMPTY;
   return {
-    legs: settled ? fetched.legs : EMPTY,
+    legs,
     loading: needsRoute && !settled,
+    unavailable: needsRoute && settled && legs.every((leg) => leg.path.length < 2),
+    retry: () => setAttempt((n) => n + 1),
   };
 }
