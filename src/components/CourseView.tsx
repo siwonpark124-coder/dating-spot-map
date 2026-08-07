@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { CourseStop, courseLegs, formatDistance, totalWalkMinutes } from "@/lib/course";
-import { useWalkRoute } from "@/lib/useWalkRoute";
+import { useWalkRouteState } from "@/lib/useWalkRoute";
 import CourseMap from "./CourseMap";
 
 /**
@@ -10,7 +10,7 @@ import CourseMap from "./CourseMap";
  * 보행 경로를 한 번만 가져와서 지도와 구간 시간이 같은 값을 쓰도록 여기서 묶는다.
  */
 export default function CourseView({ stops }: { stops: CourseStop[] }) {
-  const walkLegs = useWalkRoute(stops);
+  const { legs: walkLegs, loading } = useWalkRouteState(stops);
   const legs = courseLegs(stops, walkLegs);
   const estimated = legs.some((leg) => !leg.isActualRoute);
 
@@ -18,6 +18,7 @@ export default function CourseView({ stops }: { stops: CourseStop[] }) {
     <>
       <p className="text-sm text-stone-500">
         {stops.length}곳 · 걸어서 총 {totalWalkMinutes(stops, walkLegs)}분
+        {loading && <span className="ml-1 text-stone-400">· 경로 계산 중…</span>}
       </p>
 
       <div className="h-72 overflow-hidden rounded-xl border border-stone-200">
@@ -63,9 +64,11 @@ export default function CourseView({ stops }: { stops: CourseStop[] }) {
       </ol>
 
       <p className="text-xs text-stone-400">
-        {estimated
-          ? "도보 시간은 직선거리 기준 추정치예요."
-          : "도보 시간은 실제 보행로 기준이에요."}{" "}
+        {loading
+          ? "보행 경로를 불러오는 중이에요."
+          : estimated
+            ? "도보 시간은 직선거리 기준 추정치예요."
+            : "도보 시간은 실제 보행로 기준이에요."}{" "}
         지하철·버스·자차는 각 구간의 길찾기에서 확인할 수 있어요.
       </p>
     </>

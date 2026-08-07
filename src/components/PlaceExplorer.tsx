@@ -24,7 +24,7 @@ import {
   subscribeDraft,
 } from "@/lib/course";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { useWalkRoute } from "@/lib/useWalkRoute";
+import { useWalkRouteState } from "@/lib/useWalkRoute";
 import { saveCourse } from "@/app/course/actions";
 import KakaoMap from "./KakaoMap";
 import PlaceCard from "./PlaceCard";
@@ -133,7 +133,7 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
   );
 
   const updateCourse = useCallback((stops: CourseStop[]) => saveDraft(stops), []);
-  const walkLegs = useWalkRoute(courseStops);
+  const { legs: walkLegs, loading: walkLoading } = useWalkRouteState(courseStops);
 
   const handleSaveCourse = useCallback(
     async (title: string) => {
@@ -291,7 +291,13 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
         </div>
       </div>
 
-      <CourseTray stops={courseStops} onChange={updateCourse} onSave={handleSaveCourse} walkLegs={walkLegs} />
+      <CourseTray
+        stops={courseStops}
+        onChange={updateCourse}
+        onSave={handleSaveCourse}
+        walkLegs={walkLegs}
+        walkLoading={walkLoading}
+      />
     </div>
   );
 }

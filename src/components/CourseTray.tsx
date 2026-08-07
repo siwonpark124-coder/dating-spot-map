@@ -18,9 +18,17 @@ interface CourseTrayProps {
   onSave: (title: string) => Promise<string | null>;
   /** 실제 보행 경로. 있으면 그 시간을, 없으면 직선 추정치를 보여준다. */
   walkLegs?: { meters: number | null; minutes: number | null }[];
+  /** 경로를 받아오는 중이면 지금 보이는 값이 추정치라는 걸 알려준다. */
+  walkLoading?: boolean;
 }
 
-export default function CourseTray({ stops, onChange, onSave, walkLegs }: CourseTrayProps) {
+export default function CourseTray({
+  stops,
+  onChange,
+  onSave,
+  walkLegs,
+  walkLoading,
+}: CourseTrayProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
@@ -57,6 +65,7 @@ export default function CourseTray({ stops, onChange, onSave, walkLegs }: Course
             {stops.length > 1 && (
               <span className="ml-2 font-normal text-stone-500">
                 걸어서 총 {totalWalkMinutes(stops, walkLegs)}분
+                {walkLoading && <span className="ml-1 text-stone-400">· 경로 계산 중…</span>}
               </span>
             )}
           </h2>
