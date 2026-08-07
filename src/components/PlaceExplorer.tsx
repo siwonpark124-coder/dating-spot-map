@@ -79,9 +79,14 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
     [filteredPlaces, selectedPlaceId],
   );
 
-  // 선택한 카드가 아직 안 그려진 페이지에 있으면 거기까지는 펼친다.
+  // 선택한 카드가 아직 안 그려진 페이지에 있으면 거기까지 펼친다.
+  // 딱 그 카드까지만 펼치면 그게 마지막 카드가 돼서 맨 위로 스크롤할 여백이 없다.
+  // 한 페이지를 더 그려서 위로 올릴 공간을 만든다.
   // effect에서 visibleCount를 올리면 렌더가 한 번 더 도니 파생값으로 계산한다.
-  const effectiveCount = Math.max(visibleCount, selectedIndex + 1);
+  const effectiveCount =
+    selectedIndex < 0
+      ? visibleCount
+      : Math.min(Math.max(visibleCount, selectedIndex + 1 + PAGE_SIZE), filteredPlaces.length);
 
   const visiblePlaces = useMemo(
     () => filteredPlaces.slice(0, effectiveCount),
@@ -104,13 +109,13 @@ export default function PlaceExplorer({ places }: { places: PlaceWithReviewCount
     return () => observer.disconnect();
   }, [effectiveCount, filteredPlaces.length]);
 
-  // 선택된 카드를 목록에서 보이는 위치로 스크롤.
+  // 선택된 카드를 목록 맨 위로 올린다.
   // 목록이 길어 수만 픽셀을 이동할 수 있으니 부드러운 스크롤 대신 바로 이동한다.
   useEffect(() => {
     if (selectedIndex < 0) return;
     listRef.current
       ?.querySelector(`[data-place-id="${selectedPlaceId}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+      ?.scrollIntoView({ block: "start" });
   }, [selectedPlaceId, selectedIndex, effectiveCount]);
 
   return (
