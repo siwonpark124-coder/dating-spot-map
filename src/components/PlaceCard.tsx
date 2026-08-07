@@ -47,14 +47,15 @@ function PlaceCard({ place, selected = false }: { place: PlaceWithReviewCount; s
           <Link href={`/place/${place.id}`} className="text-stone-500 hover:underline">
             후기 {place.review_count}개
           </Link>
+          {/* 사진·메뉴는 DB에 없어서 카카오맵으로 넘긴다 */}
           {place.kakao_map_url && (
             <a href={place.kakao_map_url} target="_blank" rel="noreferrer" className="text-amber-700 underline">
-              카카오맵
+              사진·메뉴
             </a>
           )}
           {place.naver_map_url && (
             <a href={place.naver_map_url} target="_blank" rel="noreferrer" className="text-amber-700 underline">
-              네이버 길찾기
+              길찾기
             </a>
           )}
           {place.reservation_url && (

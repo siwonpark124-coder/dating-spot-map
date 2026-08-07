@@ -59,19 +59,36 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
           {typedPlace.curation_note && <p className="text-sm text-stone-700">{typedPlace.curation_note}</p>}
           {typedPlace.business_hours && <p className="text-xs text-stone-500">{typedPlace.business_hours}</p>}
 
-          <div className="mt-1 flex gap-3 text-xs">
+          {/* 사진·메뉴는 수집 경로(카카오 로컬 API)가 주지 않아 DB에 없다.
+              직접 보여주는 대신 실제로 있는 곳으로 보낸다. */}
+          <div className="mt-2 flex flex-wrap gap-2 text-sm">
             {typedPlace.kakao_map_url && (
-              <a href={typedPlace.kakao_map_url} target="_blank" rel="noreferrer" className="text-amber-700 underline">
-                카카오맵
+              <a
+                href={typedPlace.kakao_map_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg bg-amber-800 px-3 py-2 font-medium text-white hover:bg-amber-900"
+              >
+                사진 · 메뉴 보기
               </a>
             )}
             {typedPlace.naver_map_url && (
-              <a href={typedPlace.naver_map_url} target="_blank" rel="noreferrer" className="text-amber-700 underline">
-                네이버 길찾기
+              <a
+                href={typedPlace.naver_map_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-700 hover:bg-stone-100"
+              >
+                길찾기
               </a>
             )}
             {typedPlace.reservation_url && (
-              <a href={typedPlace.reservation_url} target="_blank" rel="noreferrer" className="text-stone-700 underline">
+              <a
+                href={typedPlace.reservation_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-700 hover:bg-stone-100"
+              >
                 예약
               </a>
             )}
