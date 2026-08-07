@@ -31,6 +31,9 @@ const EMPTY_LEG: WalkLeg = { path: [], meters: null, minutes: null };
 const cache = new Map<string, WalkLeg[]>();
 const CACHE_LIMIT = 300;
 
+/** 키 없음 경고는 요청마다 찍으면 시끄러우니 한 번만 남긴다 */
+let warnedMissingKey = false;
+
 function cacheKey(stops: Point[]) {
   return stops.map((s) => `${s.lat.toFixed(5)},${s.lng.toFixed(5)}`).join("|");
 }
@@ -116,7 +119,14 @@ function roughMeters(a: Point, b: Point) {
 export async function POST(request: NextRequest) {
   const apiKey = process.env.ORS_API_KEY;
   if (!apiKey) {
-    // 키가 없어도 코스 기능 자체는 동작해야 하므로 에러가 아니라 "없음"으로 알린다
+    // 키가 없어도 코스 기능 자체는 동작해야 하므로 에러가 아니라 "없음"으로 알린다.
+    // 다만 배포 환경에 키를 안 넣어 조용히 직선으로 그려지는 일이 잦아 로그는 남긴다.
+    if (!warnedMissingKey) {
+      warnedMissingKey = true;
+      console.warn(
+        "ORS_API_KEY가 없어 보행 경로를 계산하지 않습니다. 코스는 직선으로 그려집니다.",
+      );
+    }
     return Response.json({ available: false, legs: [] });
   }
 
