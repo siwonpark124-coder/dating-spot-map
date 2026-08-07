@@ -135,6 +135,9 @@ export default function PlaceList({
 
         {showFooterLinks && (
           <div className="flex flex-wrap gap-x-4 gap-y-2 pt-2 text-xs text-stone-500">
+            <Link href="/submit-place" className="font-medium text-amber-700 underline">
+              장소 신청하기
+            </Link>
             <Link href="/feedback" className="underline">
               피드백 남기기
             </Link>

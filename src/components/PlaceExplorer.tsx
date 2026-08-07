@@ -383,6 +383,9 @@ export default function PlaceExplorer({
             </Link>
           ) : (
             <>
+              <Link href="/submit-place" className="font-medium text-amber-700 underline hover:text-amber-900">
+                장소 신청하기
+              </Link>
               <Link href="/feedback" className="underline hover:text-stone-700">
                 피드백 남기기
               </Link>

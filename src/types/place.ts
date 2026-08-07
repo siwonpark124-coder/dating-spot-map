@@ -27,6 +27,10 @@ export interface Place {
   reservation_url: string | null;
   status: PlaceStatus;
   rejection_reason: string | null;
+  /** 사용자가 신청 폼으로 넣은 장소인지 (수집 스크립트가 넣은 것과 구분) */
+  submitted_by_user: boolean;
+  /** 신청자가 남긴 한 줄 이유 */
+  submission_note: string | null;
   kakao_place_id: string | null;
   created_at: string;
   updated_at: string;

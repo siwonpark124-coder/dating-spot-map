@@ -109,11 +109,25 @@ export default function PlaceEditor({
         )}
 
         <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-bold text-stone-900">{place.name}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-stone-900">{place.name}</h2>
+            {place.submitted_by_user && (
+              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+                사용자 신청
+              </span>
+            )}
+          </div>
           <p className="text-sm text-stone-500">
             {place.cuisine ? `${place.cuisine} ${CATEGORY_LABELS[place.category]}` : CATEGORY_LABELS[place.category]} ·{" "}
             {place.neighborhood} · {place.address}
           </p>
+
+          {/* 신청자가 남긴 이유. 추천 이유를 쓸 때 실마리가 된다. */}
+          {place.submission_note && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              &ldquo;{place.submission_note}&rdquo;
+            </p>
+          )}
           {place.kakao_map_url && (
             <a
               href={place.kakao_map_url}

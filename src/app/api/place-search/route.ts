@@ -41,10 +41,12 @@ export async function GET(request: NextRequest) {
     const data = await res.json();
     const results = (data.documents ?? []).map(
       (doc: {
+        id: string;
         place_name: string;
         category_name?: string;
         road_address_name?: string;
         address_name?: string;
+        place_url?: string;
         x: string;
         y: string;
       }) => ({
@@ -54,6 +56,10 @@ export async function GET(request: NextRequest) {
         address: doc.road_address_name || doc.address_name || "",
         lat: Number(doc.y),
         lng: Number(doc.x),
+        // 아래는 장소 신청에서만 쓴다. 중복 판단과 업종 분류에 필요하다.
+        kakaoPlaceId: doc.id,
+        categoryName: doc.category_name ?? "",
+        placeUrl: doc.place_url ?? "",
       }),
     );
 
