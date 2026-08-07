@@ -14,10 +14,13 @@ interface PlaceCardProps {
 
 function PlaceCard({ place, selected = false, inCourse, courseFull, onAddToCourse }: PlaceCardProps) {
   return (
+    // 지도에서 고른 카드는 테두리만으로는 눈에 안 들어와서, 여백·그림자·배경까지 같이 키운다.
     <article
       data-place-id={place.id}
-      className={`flex scroll-mt-3 gap-3 rounded-lg border bg-white p-3 transition-colors ${
-        selected ? "border-amber-700 ring-2 ring-amber-700/30" : "border-stone-200"
+      className={`flex scroll-mt-3 gap-3 rounded-lg border transition-all ${
+        selected
+          ? "border-amber-700 bg-amber-50/70 p-4 shadow-md ring-2 ring-amber-700/40"
+          : "border-stone-200 bg-white p-3"
       }`}
     >
       {place.cover_image_url && (
@@ -31,7 +34,11 @@ function PlaceCard({ place, selected = false, inCourse, courseFull, onAddToCours
       <div className="flex flex-1 flex-col gap-1">
         <Link href={`/place/${place.id}`} className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <h2 className="font-semibold text-stone-900 hover:underline">{place.name}</h2>
+            <h2
+              className={`font-semibold text-stone-900 hover:underline ${selected ? "text-lg" : ""}`}
+            >
+              {place.name}
+            </h2>
             <span className="text-xs text-stone-500">
               {place.cuisine ? `${place.cuisine} ${CATEGORY_LABELS[place.category]}` : CATEGORY_LABELS[place.category]}
               {place.price_tier && ` · ${PRICE_TIER_LABELS[place.price_tier]}`}
@@ -48,7 +55,12 @@ function PlaceCard({ place, selected = false, inCourse, courseFull, onAddToCours
             </div>
           )}
 
-          {place.curation_note && <p className="line-clamp-2 text-sm text-stone-700">{place.curation_note}</p>}
+          {/* 고른 카드는 설명을 접지 않는다. 어떤 곳인지 보려고 누른 거라서. */}
+          {place.curation_note && (
+            <p className={`text-sm text-stone-700 ${selected ? "" : "line-clamp-2"}`}>
+              {place.curation_note}
+            </p>
+          )}
           {place.business_hours && <p className="text-xs text-stone-500">{place.business_hours}</p>}
         </Link>
 
