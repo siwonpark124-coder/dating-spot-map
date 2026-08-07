@@ -41,6 +41,11 @@ interface Segment {
   steps?: { way_points?: number[] }[];
 }
 
+interface Feature {
+  geometry?: { coordinates?: [number, number][] };
+  properties?: { segments?: Segment[]; way_points?: number[] };
+}
+
 /** 구간의 첫 step 시작점 ~ 마지막 step 끝점. 최상위 way_points가 없을 때의 대안. */
 function stepBounds(segment?: Segment): readonly [number, number] | null {
   const steps = segment?.steps;
@@ -49,6 +54,59 @@ function stepBounds(segment?: Segment): readonly [number, number] | null {
   const end = steps[steps.length - 1].way_points?.[1];
   if (typeof start !== "number" || typeof end !== "number" || end <= start) return null;
   return [start, end] as const;
+}
+
+/** ORS GeoJSON 응답을 구간별 경로로 자른다. */
+function splitLegs(data: unknown, stopCount: number): WalkLeg[] {
+  const feature = (data as { features?: Feature[] })?.features?.[0];
+  const coords: [number, number][] = feature?.geometry?.coordinates ?? [];
+  const segments: Segment[] = feature?.properties?.segments ?? [];
+  const wayPoints: number[] = feature?.properties?.way_points ?? [];
+  const usableWayPoints = wayPoints.length === stopCount;
+
+  return Array.from({ length: stopCount - 1 }, (_, i) => {
+    const segment = segments[i];
+    const meters = segment?.distance != null ? Math.round(segment.distance) : null;
+    const minutes =
+      segment?.duration != null ? Math.max(1, Math.round(segment.duration / 60)) : null;
+
+    // 구간 경계는 최상위 way_points로 자르고, 없으면 그 구간의 steps에서 뽑는다.
+    const bounds = usableWayPoints
+      ? ([wayPoints[i], wayPoints[i + 1]] as const)
+      : stepBounds(segment);
+
+    const path =
+      bounds && coords.length > 1
+        ? coords.slice(bounds[0], bounds[1] + 1).map(([lng, lat]) => [lat, lng] as [number, number])
+        : [];
+
+    return { path, meters, minutes };
+  });
+}
+
+/** 구간 하나만 따로 계산한다. 전체 요청에서 그 구간을 못 잘랐을 때의 보강. */
+async function fetchLeg(from: Point, to: Point, apiKey: string): Promise<WalkLeg | null> {
+  try {
+    const res = await fetch(ORS_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        coordinates: [
+          [from.lng, from.lat],
+          [to.lng, to.lat],
+        ],
+      }),
+    });
+    if (!res.ok) {
+      console.error("ORS single leg failed:", res.status, await res.text());
+      return null;
+    }
+    const [leg] = splitLegs(await res.json(), 2);
+    return leg?.path.length > 1 ? leg : null;
+  } catch (error) {
+    console.error("ORS single leg error:", error);
+    return null;
+  }
 }
 
 function roughMeters(a: Point, b: Point) {
@@ -102,39 +160,23 @@ export async function POST(request: NextRequest) {
       return Response.json({ available: true, legs: fallback });
     }
 
-    const data = await res.json();
-    const feature = data?.features?.[0];
-    const coords: [number, number][] = feature?.geometry?.coordinates ?? [];
-    const segments: Segment[] = feature?.properties?.segments ?? [];
-    // 전체 경로에서 각 정거장이 놓인 위치. 구간별로 잘라내는 데 쓴다.
-    const wayPoints: number[] = feature?.properties?.way_points ?? [];
-    const usableWayPoints = wayPoints.length === valid.length;
+    const legs = splitLegs(await res.json(), valid.length);
 
-    const legs: WalkLeg[] = valid.slice(0, -1).map((_, i) => {
-      const segment = segments[i];
-      const meters = segment?.distance != null ? Math.round(segment.distance) : null;
-      const minutes =
-        segment?.duration != null ? Math.max(1, Math.round(segment.duration / 60)) : null;
+    // 한 번에 계산한 경로를 구간별로 못 자른 경우가 있다. 그때는 그 구간만 따로 부른다
+    // (구간 하나짜리 요청은 자를 일이 없어 항상 경로가 나온다).
+    // 이걸 안 하면 지도에 직선이 그려지는데, 그게 원래 그런 건지 실패한 건지 알 수 없다.
+    for (let i = 0; i < legs.length; i++) {
+      if (legs[i].path.length > 1) continue;
+      const single = await fetchLeg(valid[i], valid[i + 1], apiKey);
+      if (single) legs[i] = single;
+    }
 
-      // 구간 경계는 최상위 way_points로 자르고, 그게 없으면 각 구간의 steps에서 뽑는다.
-      // 둘 다 없으면 경로선만 포기하고 거리·시간은 실제 값을 쓴다
-      // (지도는 직선 점선, 표시되는 시간은 정확).
-      const bounds = usableWayPoints
-        ? ([wayPoints[i], wayPoints[i + 1]] as const)
-        : stepBounds(segment);
-
-      const path =
-        bounds && coords.length > 1
-          ? coords
-              .slice(bounds[0], bounds[1] + 1)
-              .map(([lng, lat]) => [lat, lng] as [number, number])
-          : [];
-
-      return { path, meters, minutes };
-    });
-
-    if (cache.size >= CACHE_LIMIT) cache.clear();
-    cache.set(key, legs);
+    // 경로가 온전히 나온 결과만 캐싱한다.
+    // 실패한 결과를 캐싱하면 이후 재시도가 전부 그 빈 결과를 되돌려받아 영영 복구되지 않는다.
+    if (legs.every((leg) => leg.path.length > 1)) {
+      if (cache.size >= CACHE_LIMIT) cache.clear();
+      cache.set(key, legs);
+    }
     return Response.json({ available: true, legs });
   } catch (error) {
     console.error("walk-route error:", error);
